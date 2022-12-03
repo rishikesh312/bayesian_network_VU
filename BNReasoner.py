@@ -16,5 +16,3 @@ class BNReasoner:
             self.bn = net
 
     # TODO: This is where your methods should go
-
-" This is a test "
