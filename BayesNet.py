@@ -13,7 +13,7 @@ class BayesNet:
     def __init__(self) -> None:
         # initialize graph structure
         self.structure = nx.DiGraph()
-
+    
     # LOADING FUNCTIONS ------------------------------------------------------------------------------------------------
     def create_bn(self, variables: List[str], edges: List[Tuple[str, str]], cpts: Dict[str, pd.DataFrame]) -> None:
         """
@@ -233,7 +233,7 @@ class BayesNet:
         """
         Given three sets of variables X, Y, and Z, determine whether X is d-separated of Y given Z.
         """
-        bn = deepcopy(self.structure)
+        bn = deepcopy(self.structure) 
         
         def _prune(): 
             _iterable = False
@@ -275,6 +275,15 @@ class BayesNet:
 
         return not _is_connected(bn, x, y)
 
+    def independence(self, x:str, y:str, z:str) -> bool:
+        """
+        Given three sets of variables X, Y, and Z, determine whether X is independent of Y given Z.
+        """
+        if self.dsep(self,x,y,z) == True:
+            return True
+        else:
+            return False
+        
     def sum_out(self,x: str, cpt: pd.DataFrame):
         """
         Given a factor and a variable X, compute the CPT in which X is summed-out.
