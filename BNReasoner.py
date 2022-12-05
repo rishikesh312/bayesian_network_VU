@@ -1,5 +1,8 @@
 from typing import Union
 from BayesNet import BayesNet
+from copy import deepcopy
+import itertools
+import pandas as pd
 
 
 class BNReasoner:
@@ -22,7 +25,7 @@ class BNReasoner:
         """
         Given three sets of variables X, Y, and Z, determine whether X is d-separated of Y given Z.
         """
-        bn = deepcopy(self.structure) 
+        bn = self.bn.structure 
         
         def _prune(): 
             _iterable = False
@@ -89,7 +92,7 @@ class BNReasoner:
         new_cpt = pd.DataFrame(columns=vars)
         for world in worlds:
             ins = pd.Series(world, index=vars)
-            compats = self.get_compatible_instantiations_table(ins, cpt)
+            compats = self.bn.get_compatible_instantiations_table(ins, cpt)
             # get sum-out pr and update to row 0
             compats = compats.append(compats.sum(), ignore_index=True)
             compats.loc[compats.index[0], pr_tag] = compats.loc[compats.index[-1], pr_tag]
@@ -97,12 +100,35 @@ class BNReasoner:
             new_cpt = new_cpt.append(compats.loc[compats.index[0]])
         return new_cpt.reset_index(drop=True)
 
+    def max_out(self, x: str, cpt: pd.DataFrame):
+        """
+        Given a factor and a variable X, compute the CPT in which X is max-out,
+        also keep track of which instantiation of X led to the maximized value.
+        """
+        tags = cpt.columns.tolist()
+        # remove x from tag, use for max-out operation
+        tags.remove(x)
+        pr_tag = tags[-1]
+        # get all variables
+        vars = tags[:-1]
+        worlds = [list(i) for i in itertools.product([False, True], repeat=len(vars))]
+        for world in worlds:
+            ins = pd.Series(world, index=vars)
+            compats = self.bn.get_compatible_instantiations_table(ins, cpt)
+            # get min index and delete from original cpt, which is equivalent of max-out
+            min_index = compats[compats[pr_tag] == compats[pr_tag].min()].index.tolist()[0]
+            cpt.drop(min_index, inplace=True)
+        # reset columns, move maximize variable to the end
+        new_columns = vars + [pr_tag] + [x]
+        cpt = cpt.reindex(columns=new_columns)
+        return cpt.reset_index(drop=True)
+
     def ordering(self, vars: set, heuristic: str):
         """
         Given a set of variables X in the Bayesian network, compute a good ordering for the elimination of X
         based on the min-degree heuristics and the min-fill heuristics.
         """
-        interaction_graph = self.get_interaction_graph()
+        interaction_graph = self.bn.get_interaction_graph()
         order = list()
 
         def _eliminate(x, interaction_graph):
@@ -153,3 +179,4 @@ class BNReasoner:
             _iter_eliminate(vars, _get_least_adding_var, interaction_graph)
         
         return order, interaction_graph
+
