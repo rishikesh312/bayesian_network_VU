@@ -180,3 +180,48 @@ class BNReasoner:
         
         return order, interaction_graph
 
+    def map(self, query, evidence, factors):
+        """
+        Maximum A-posteriori Query
+        Compute the maximum a-posteriory instantiation + value of query variables Q, given a possibly empty evidence e. 
+        """
+        variables = self.bn.get_all_variables()
+        cpts = self.bn.get_all_cpts()
+        eli_vars = list(set(variables)-set(query))
+        
+        order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
+        # TODO variable_eliminate(vars: list[str], evidences: list[str], cpts: list[df.Dataframe] )
+        factors = self.variable_eliminate(order_for_sum_out, evidence, cpts) 
+
+        def in_factor(var, factor):
+            columns = factor.columns.tolist()
+            if var in set(columns[:columns.index('p')]):
+                return True
+            else:
+                return False
+
+        def max_out_eliminate(var, factors):
+            to_multiply = factors
+            mul = False
+            for f in to_multiply:
+                if in_factor(var, f):
+                    if not mul:
+                        mul_factor = f
+                    else:
+                         # TODO factor_multiply(f1: pd.Datafame, f2: pd.Datafame) -> pd.Datafame:
+                        mul_factor = self.factor_multiply(mul_factor, f)
+                    factors.remove(f)
+                    mul = True
+                else:
+                    continue
+            
+            max_out_factor = self.max_out(mul_factor)
+            factors.append(max_out_factor)
+            return factors
+
+        order_for_max_out, _ = self.ordering(query, heuristic="degree")
+        for var in order_for_max_out:
+            factors = max_out_eliminate(var, factors)
+
+        return factors
+
