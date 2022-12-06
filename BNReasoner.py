@@ -197,17 +197,6 @@ class BNReasoner:
         for node in nodes:
             if bn.out_degree(node)==0 and node not in [Q,e]:
                 bn.remove_node(node)
-    def joint_distribution(self,cpt):
-       names=cpt.columns.tolist()
-       print(names)
-       variable=names[:-1]
-       newt = pd.DataFrame(columns=variable)
-       worlds = [list(i) for i in itertools.product([False, True], repeat=len(variable))]
-       for world in worlds:
-           inst=pd.Series(world,index=variable)
-           compart=self.bn.get_compatible_instantiations_table(inst, cpt)
-           newt.append(compart)
-           print(newt)
 #------------------------------Variable Elimination---------------------------------------------------------------
     def multip(self,var,factor1,factor2):
         newvar=[]
@@ -255,7 +244,6 @@ class BNReasoner:
         perms=[list(i) for i in itertools.product([False, True], repeat=length)]    
         return perms
 
-<<<<<<< HEAD
     def makefactor(self, var, factorvars, e):
         bn = self.bn.structure
         nodes = deepcopy(bn.nodes)
@@ -357,7 +345,6 @@ print(cpt)
 print(br.variable_elimination("family-out",{"dog-out":False,"family-out":False}, cpt))
 #con=[bn.get_cpt("family-out")]
 #print(con)
-=======
     def map(self, query, evidence, factors):
         """
         Maximum A-posteriori Query
@@ -404,5 +391,3 @@ print(br.variable_elimination("family-out",{"dog-out":False,"family-out":False},
             factors = max_out_eliminate(var, factors)
 
         return factors
-
->>>>>>> 23fbe5d5f7a845ffe4b17552c8b7648eba0ffa76
