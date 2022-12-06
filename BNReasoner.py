@@ -189,8 +189,10 @@ class BNReasoner:
         cpts = self.bn.get_all_cpts()
         eli_vars = list(set(variables)-set(query))
         
+        # TODO graph puning
+        # TODO reduce factor using evidence
         order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
-        # TODO variable_eliminate(vars: list[str], evidences: list[str], cpts: list[df.Dataframe] )
+        # TODO variable_eliminate(vars: list[str], evidences: list[str], cpts: list[df.Dataframe]) -> list[pd.Dataframe]
         factors = self.variable_eliminate(order_for_sum_out, evidence, cpts) 
 
         def in_factor(var, factor):
