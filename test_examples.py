@@ -66,3 +66,14 @@ ins = pd.Series({"O": True})
 results = (br.map(["I", "J"], ins, factors))
 for f in results:
     print(f)
+   
+""" Network Purning"""
+br = BNReasoner("testing/dog_problem.BIFXML")
+br.bn.draw_structure()
+br.network_pruning("family-out",{"hear-bark":True})
+br.bn.draw_structure()
+
+""" marginal distribution"""
+br = BNReasoner("testing/dog_problem.BIFXML")
+br.bn.draw_structure()
+print(br.marginal_distribution(["dog-out"],{"family-out":True,"bowel-problem":False},["hear-bark"]))
