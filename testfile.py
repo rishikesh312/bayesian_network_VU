@@ -1,21 +1,13 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Wed Dec  7 14:27:06 2022
-
-@author: rishi
-"""
-
 from BayesNet import BayesNet
 from BNReasoner import BNReasoner
+   
+#Network Purning
+br = BNReasoner("testing/dog_problem.BIFXML")
+br.bn.draw_structure()#shows the graph before pruning
+br.network_pruning("family-out",{"hear-bark":True})
+br.bn.draw_structure()#shows the graph after pruning
 
-
-bn = BayesNet()
-bn.load_from_bifxml("testing/dog_problem.BIFXML")
-br = BNReasoner(bn)
-cpt = bn.get_cpt("dog-out")
-x = 'family-out'
-print(bn.get_all_cpts())
-print("\n \n")
-print(cpt)
-print(br.variable_elimination("dog-out",{"family-out":True,"bowel-problem":False}, cpt))
+#marginal distribution
+br = BNReasoner("testing/dog_problem.BIFXML")
+br.bn.draw_structure()
+print(br.marginal_distribution(["dog-out"],{"family-out":True,"bowel-problem":False},["hear-bark"]))
