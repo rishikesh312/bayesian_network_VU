@@ -4,6 +4,7 @@ from copy import deepcopy
 import itertools
 import pandas as pd
 import numpy as np
+import networkx as nx
 from pgmpy.readwrite import XMLBIFReader
 class BNReasoner:
     def __init__(self, net: Union[str, BayesNet]):
@@ -198,7 +199,7 @@ class BNReasoner:
             if bn.out_degree(node)==0 and node not in [Q,e]:
                 bn.remove_node(node)
 #------------------------------Variable Elimination---------------------------------------------------------------
-    def multip(self,var,factor1,factor2):
+    def multip(self,factor1,factor2):
         newvar=[]
         #print(var)
         newvar.extend(factor1[0])
@@ -217,6 +218,31 @@ class BNReasoner:
             prob = factor1[1][key1][0]*factor2[1][key2][0]
             newtbl[key] =prob
         return (newvar,newtbl)
+    
+    #Factor_multiplication
+    def factor_multiply(self,factor1,factor2):
+        value=self.multip(factor1, factor2)
+        #print(value[0])
+        tit=value[0]
+        #print(value[1])
+        indi_probs=[]
+        tit.append('p')
+        df=pd.DataFrame(columns=tit,index=range(0,len(value[1])))
+        key=list(value[1].keys())
+        #print(key)
+        for k in key:
+            indi_probs.append(value[1][k])
+            #print(indi_probs)
+        p=len(tit)-1
+        j=0
+        for k in key:
+            i=0
+            for x in k: 
+                df.iloc[j,i]=x
+                i+=1
+            df.iloc[j,p]=indi_probs[j]
+            j+=1
+        return df
     
     def querygiven(self,Q,e):
         #Given the probablity of p(Q|e)
@@ -237,7 +263,20 @@ class BNReasoner:
         return prob
             
     def normalize(self,probs):
-        return tuple(x*1/sum(probs) for x in probs)
+        #print(probs)
+        d=probs
+        key=list(d.keys())
+        indi_probs=[]
+        answer=[]
+        entry={}
+        for k in key:
+            indi_probs.append(probs[k])
+        #print(indi_probs)
+        total=sum(indi_probs)
+        for k in key:
+            answer=probs[k]/total
+            entry[k]=answer
+        return entry
     
     def genpermutations(self,length):
         #creates various combinations of True and False w.r.t to length
@@ -314,80 +353,31 @@ class BNReasoner:
         #calculating the product
         if len(factor[0]) >=2:
                 for fact in factor[0:]:
-                    result=self.multip(var,factor[0],fact)
+                    #print("hello")
+                    result=self.multip(factor[0],fact)
         else:
             result=factor[0]
-        i=True
         #normalizing it
-        for t in result:
-            solution=self.normalize((result[1][(False,i)],result[1][True,i]))
-            i=False
-        return solution
+        #print(result)
+        solution=self.normalize(result[1])
+        #creating Dataframe
+        tit=result[0]
+        indi_probs=[]
+        tit.append('p')
+        df=pd.DataFrame(columns=tit,index=range(0,len(solution)))
+        key=list(solution.keys())
+        for k in key:
+            indi_probs.append(solution[k])
+        p=len(tit)-1
+        j=0
+        for k in key:
+            i=0
+            for x in k: 
+                df.iloc[j,i]=x
+                i+=1
+            df.iloc[j,p]=indi_probs[j]
+            j+=1
+        return df
  #---------------------------------------------------------------------------------------------------           
+     
         
-        
-bn = BayesNet()
-bn.load_from_bifxml("testing/dog_problem.BIFXML")
-br = BNReasoner(bn)
-"""sum_out and max_out test"""
-cpt = bn.get_cpt("dog-out")
-x = 'family-out'
-print(bn.get_all_cpts())
-print("\n \n")
-print(cpt)
-
-#print(br.edge_prune("dog-out"))
-#print(br.node_prune("family-out","dog-out"))
-#print(bn.draw_structure())
-#print(br.sum_out(x, cpt))
-#print(br.joint_distribution(cpt))
-#print(br.max_out(x, cpt))
-print(br.variable_elimination("family-out",{"dog-out":False,"family-out":False}, cpt))
-#con=[bn.get_cpt("family-out")]
-#print(con)
-    def map(self, query, evidence, factors):
-        """
-        Maximum A-posteriori Query
-        Compute the maximum a-posteriory instantiation + value of query variables Q, given a possibly empty evidence e. 
-        """
-        variables = self.bn.get_all_variables()
-        cpts = self.bn.get_all_cpts()
-        eli_vars = list(set(variables)-set(query))
-        
-        # TODO graph puning
-        # TODO reduce factor using evidence
-        order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
-        # TODO variable_eliminate(vars: list[str], evidences: list[str], cpts: list[df.Dataframe]) -> list[pd.Dataframe]
-        factors = self.variable_eliminate(order_for_sum_out, evidence, cpts) 
-
-        def in_factor(var, factor):
-            columns = factor.columns.tolist()
-            if var in set(columns[:columns.index('p')]):
-                return True
-            else:
-                return False
-
-        def max_out_eliminate(var, factors):
-            to_multiply = factors
-            mul = False
-            for f in to_multiply:
-                if in_factor(var, f):
-                    if not mul:
-                        mul_factor = f
-                    else:
-                         # TODO factor_multiply(f1: pd.Datafame, f2: pd.Datafame) -> pd.Datafame:
-                        mul_factor = self.factor_multiply(mul_factor, f)
-                    factors.remove(f)
-                    mul = True
-                else:
-                    continue
-            
-            max_out_factor = self.max_out(mul_factor)
-            factors.append(max_out_factor)
-            return factors
-
-        order_for_max_out, _ = self.ordering(query, heuristic="degree")
-        for var in order_for_max_out:
-            factors = max_out_eliminate(var, factors)
-
-        return factors
