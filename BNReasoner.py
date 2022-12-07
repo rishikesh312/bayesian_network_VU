@@ -278,8 +278,11 @@ class BNReasoner:
             factors = self._eliminate(var, factors, eli_type="max-out")
 
         return factors
-    #Network Pruning
+
     def network_pruning(self,Q,e):
+        """
+        Network Pruning
+        """
         #edge pruning
         for var,truth_val in zip(e.keys(),e.values()):
             cpt = self.bn.get_cpt(var)
@@ -308,8 +311,28 @@ class BNReasoner:
                             #removing leaf node and running again to check if there is any leaf node left
                             self.bn.del_var(variable)
                             exit_loop=False
-    #Marginal Distribution
+
     def marginal_distribution(self,Q,e,var):
+        """
+        Marginal Distribution
+        """
+        def _multiply_fact(self, X):
+            # multiple_factor(only for mariginal distribution purposes)
+            # Input list of CPT to multiply
+            # factor is starting cpt 
+            factor = X[0]
+            for index in range(1, len(X)):
+                x = X[index]
+                column_x = [col for col in x.columns if col != 'p']
+                column_factor = [col for col in factor.columns if col != 'p']
+                match = list(set(column_x) & set(column_factor))
+                
+                if len(match) != 0:
+                    df_mul = pd.merge(x, factor, how='left', on=match)
+                    df_mul['p'] = (df_mul['p_x'] * df_mul['p_y'])
+                    df_mul.drop(['p_x', 'p_y'],inplace=True, axis = 1)
+                    factor = df_mul
+            return factor
         #prunes the network based on Q and e
         self.network_pruning(Q, e)
         evidence_fact=1
@@ -331,8 +354,8 @@ class BNReasoner:
                     factor_var[cpt_var]=src[cpt_var]
             #apply chain rule and eliminate all variables
             if len(factor_var) >= 2:
-               multiply_fact = self.Multiplefact(list(factor_var.values()))
-               new_cpt =self.sum_out(multiply_fact,[variable])
+               _multiply_fact = self.Multiplefact(list(factor_var.values()))
+               new_cpt =self.sum_out(_multiply_fact,[variable])
                
                for factor_variables in factor_var:
                    del src[factor_variables]
@@ -348,25 +371,8 @@ class BNReasoner:
                    src["factor"+str(factor)] = new_cpt
        
         if len(src)>1:
-           marginal_distrib=self.multiply_fact(list(src.values()))
+           marginal_distrib=self._multiply_fact(list(src.values()))
         else:
             marginal_distrib=list(src.values())[0]
         marginal_distrib["p"] = marginal_distrib["p"].div(evidence_fact)
         return marginal_distrib
-    #multiple_factor(only for mariginal distribution purposes)
-    def multiply_fact(self, X):
-        #Input list of CPT to multiply
-        # factor is starting cpt 
-        factor = X[0]
-        for index in range(1, len(X)):
-            x = X[index]
-            column_x = [col for col in x.columns if col != 'p']
-            column_factor = [col for col in factor.columns if col != 'p']
-            match = list(set(column_x) & set(column_factor))
-            
-            if len(match) != 0:
-                df_mul = pd.merge(x, factor, how='left', on=match)
-                df_mul['p'] = (df_mul['p_x'] * df_mul['p_y'])
-                df_mul.drop(['p_x', 'p_y'],inplace=True, axis = 1)
-                factor = df_mul
-        return factor
