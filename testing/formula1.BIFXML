@@ -1,0 +1,137 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+
+<!--Author: Group 2 
+    Bayesian network in XMLBIF v0.3 (BayesNet Interchange Format)
+ -->
+
+<!-- DTD for the XMLBIF 0.3 format -->
+<!DOCTYPE BIF [
+	<!ELEMENT BIF ( NETWORK )*>
+	      <!ATTLIST BIF VERSION CDATA #REQUIRED>
+	<!ELEMENT NETWORK ( NAME, ( PROPERTY | VARIABLE | DEFINITION )* )>
+	<!ELEMENT NAME (#PCDATA)>
+	<!ELEMENT VARIABLE ( NAME, ( OUTCOME |  PROPERTY )* ) >
+	      <!ATTLIST VARIABLE TYPE (nature|decision|utility) "nature">
+	<!ELEMENT OUTCOME (#PCDATA)>
+	<!ELEMENT DEFINITION ( FOR | GIVEN | TABLE | PROPERTY )* >
+	<!ELEMENT FOR (#PCDATA)>
+	<!ELEMENT GIVEN (#PCDATA)>
+	<!ELEMENT TABLE (#PCDATA)>
+	<!ELEMENT PROPERTY (#PCDATA)>
+]>
+
+<BIF VERSION="0.3">
+<NETWORK>
+    <NAME>Formula 1</NAME>
+
+    <!-- Variables-->
+    <VARIABLE TYPE="nature">
+        <NAME>Rain?</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Pole Position?</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Slippery Road?</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Clash?</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Highest Average Speed?</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Sliding?</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Most Pitstops?</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Time Penalty?</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Verstappen?</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Hamilton?</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+
+    <!-- PCTs -->
+    <DEFINITION>
+        <FOR>Rain?</FOR>
+        <TABLE>0.85 0.15</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Pole Position?</FOR>
+        <TABLE>0.41 0.59</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Slippery Road?</FOR>
+        <GIVEN>Rain?</GIVEN>
+        <GIVEN>Clash?</GIVEN>
+        <TABLE>0.9 0.1 0.4 0.6 0.05 0.95 0.0 1.0</TABLE> <!-- Order? Rain?, Sprinkler?, Wet Grass?-->
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Clash?</FOR>
+        <GIVEN>Pole Position?</GIVEN>
+        <GIVEN>Rain?</GIVEN>
+        <TABLE>0.8 0.2 0.7 0.3 0.85 0.15 0.8 0.2</TABLE> <!-- Order? Rain?, Sprinkler?, Wet Grass?-->
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Highest Average Speed?</FOR>
+        <GIVEN>Pole Position?</GIVEN>
+        <GIVEN>Most Pitstops?</GIVEN>
+        <TABLE>0.4 0.6 0.8 0.2 0.3 0.7 0.6 0.4</TABLE> <!-- Order? Rain?, Sprinkler?, Wet Grass?-->
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Sliding?</FOR>
+        <GIVEN>Rain?</GIVEN>
+        <GIVEN>Slippery Road?</GIVEN>
+        <TABLE>0.8 0.2 0.85 0.15 0.6 0.4 0.3 0.7</TABLE> <!-- Order? Rain?, Sprinkler?, Wet Grass?-->
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Most Pitstops?</FOR>
+        <GIVEN>Slippery Road?</GIVEN>
+        <GIVEN>Sliding?</GIVEN>
+        <TABLE>0.6 0.4 0.1 0.9 0.85 0.15 0.3 0.7</TABLE> <!-- Order? Rain?, Sprinkler?, Wet Grass?-->
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Time Penalty?</FOR>
+        <GIVEN>Clash?</GIVEN>
+        <GIVEN>Highest Average Speed?</GIVEN>
+        <TABLE>0.8 0.2 0.75 0.25 0.5 0.5 0.25 0.75</TABLE> <!-- Order? Rain?, Sprinkler?, Wet Grass?-->
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Verstappen?</FOR>
+        <GIVEN>Most Pitstops?</GIVEN>
+        <GIVEN>Time Penalty?</GIVEN>
+        <TABLE>0.2 0.8 0.3 0.7 0.4 0.6 0.7 0.3</TABLE> <!-- Order? Rain?, Sprinkler?, Wet Grass?-->
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Hamilton?</FOR>
+        <GIVEN>Most Pitstops?</GIVEN>
+        <GIVEN>Time Penalty?</GIVEN>
+        <TABLE>0.1 0.9 0.3 0.7 0.3 0.7 0.65 0.35</TABLE> <!-- Order? Rain?, Sprinkler?, Wet Grass?-->
+    </DEFINITION>
+</NETWORK>
+</BIF>
