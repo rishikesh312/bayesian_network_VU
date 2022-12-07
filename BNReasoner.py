@@ -99,12 +99,8 @@ class BNReasoner:
             compats = compats.append(compats.sum(), ignore_index=True)
             compats.loc[compats.index[0], pr_tag] = compats.loc[compats.index[-1], pr_tag]
             # append row 0 to new cpt
-            new=compats.loc[compats.index[0]]
-            new_cpt = new_cpt.append(new)
-            all_probs=new['p'].tolist()
-            key=tuple(world)
-            entries[key]=[all_probs]
-        return (vars,entries)
+            new_cpt = new_cpt.append(compats.loc[compats.index[0]])
+        return new_cpt
     
 
     def max_out(self, x: str, cpt: pd.DataFrame):
