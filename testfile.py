@@ -18,13 +18,4 @@ x = 'family-out'
 print(bn.get_all_cpts())
 print("\n \n")
 print(cpt)
-#print(br.node_pruning("dog-out,family-out"))
-#print(br.edge_prune("dog-out"))
-#print(br.node_prune("family-out","dog-out"))
-#print(bn.draw_structure())
-#print(br.sum_out(x, cpt))
-#print(br.joint_distribution(cpt))
-#print(br.max_out(x, cpt))
 print(br.variable_elimination("dog-out",{"family-out":True,"bowel-problem":False}, cpt))
-#con=[bn.get_cpt("family-out")]
-#print(con)
