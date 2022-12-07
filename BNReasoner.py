@@ -6,6 +6,7 @@ import pandas as pd
 import numpy as np
 import networkx as nx
 from pgmpy.readwrite import XMLBIFReader
+from typing import List
 class BNReasoner:
     def __init__(self, net: Union[str, BayesNet]):
         """
@@ -84,7 +85,6 @@ class BNReasoner:
         tags = cpt.columns.tolist()
         # remove x from tag and used as columns of new cpt
         tags.remove(x)
-        entries ={}
         pr_tag = tags[-1]
         # get all variables
         vars = tags[:-1]
@@ -99,13 +99,8 @@ class BNReasoner:
             compats = compats.append(compats.sum(), ignore_index=True)
             compats.loc[compats.index[0], pr_tag] = compats.loc[compats.index[-1], pr_tag]
             # append row 0 to new cpt
-            new=compats.loc[compats.index[0]]
-            new_cpt = new_cpt.append(new)
-            all_probs=new['p'].tolist()
-            key=tuple(world)
-            entries[key]=[all_probs]
-        return (vars,entries)
-    
+            new_cpt = new_cpt.append(compats.loc[compats.index[0]])
+        return new_cpt.reset_index(drop=True)
 
     def max_out(self, x: str, cpt: pd.DataFrame):
         """
@@ -186,198 +181,195 @@ class BNReasoner:
             _iter_eliminate(vars, _get_least_adding_var, interaction_graph)
         
         return order, interaction_graph
-    def edge_prune(self,e):
-        bn = self.bn.structure
-        e_connection =[conn for conn in bn.successors(e)]
-        for con in e_connection:
-            bn.remove_edge(e,con)
-    def node_prune(self,Q,e):
-        bn = self.bn.structure
-        #nodes = deepcopy(bn.nodes)
-        nodes = deepcopy(bn.nodes)
-        for node in nodes:
-            if bn.out_degree(node)==0 and node not in [Q,e]:
-                bn.remove_node(node)
-#------------------------------Variable Elimination---------------------------------------------------------------
-    def multip(self,factor1,factor2):
-        newvar=[]
-        #print(var)
-        newvar.extend(factor1[0])
-        newvar.extend(factor2[0])
-        newvar=list(set(newvar))
-        newvar.sort()
-        perms=self.genpermutations(len(newvar))
-        newtbl={}
-        asg={}
-        for perm in perms:
-            for pair in zip(newvar,perm):
-                asg[pair[0]]=pair[1]
-            key=tuple(asg[v] for v in newvar)
-            key1=tuple(asg[v] for v in factor1[0])
-            key2=tuple(asg[v] for v in factor2[0])
-            prob = factor1[1][key1][0]*factor2[1][key2][0]
-            newtbl[key] =prob
-        return (newvar,newtbl)
-    
-    #Factor_multiplication
-    def factor_multiply(self,factor1,factor2):
-        value=self.multip(factor1, factor2)
-        #print(value[0])
-        tit=value[0]
-        #print(value[1])
-        indi_probs=[]
-        tit.append('p')
-        df=pd.DataFrame(columns=tit,index=range(0,len(value[1])))
-        key=list(value[1].keys())
-        #print(key)
-        for k in key:
-            indi_probs.append(value[1][k])
-            #print(indi_probs)
-        p=len(tit)-1
-        j=0
-        for k in key:
-            i=0
-            for x in k: 
-                df.iloc[j,i]=x
-                i+=1
-            df.iloc[j,p]=indi_probs[j]
-            j+=1
-        return df
-    
-    def querygiven(self,Q,e):
-        #Given the probablity of p(Q|e)
-        #it finds the probablity
-        bn=self.bn.structure
-        node=bn.nodes
-        cpt = self.bn.get_cpt(Q)
-        all_probs=cpt['p'].tolist()
-        evidence=pd.Series(e)
-        parent=[p for p in bn.predecessors(Q)]
-        #if there is not parent
-        if len(parent)==0:
-            prob=[all_probs[1] if e[Q] else all_probs[0]]
-        #if there is atleast one parent get the value of the parents, then query for p(Y)=y
-        else:
-            w=self.bn.get_compatible_instantiations_table(evidence, cpt)
-            prob=w['p'].tolist()
-        return prob
-            
-    def normalize(self,probs):
-        #print(probs)
-        d=probs
-        key=list(d.keys())
-        indi_probs=[]
-        answer=[]
-        entry={}
-        for k in key:
-            indi_probs.append(probs[k])
-        #print(indi_probs)
-        total=sum(indi_probs)
-        for k in key:
-            answer=probs[k]/total
-            entry[k]=answer
-        return entry
-    
-    def genpermutations(self,length):
-        #creates various combinations of True and False w.r.t to length
-        perms=[list(i) for i in itertools.product([False, True], repeat=length)]    
-        return perms
 
-    def makefactor(self, var, factorvars, e):
-        bn = self.bn.structure
-        nodes = deepcopy(bn.nodes)
-        parent_node=[]
-        for parent in nodes:
-            if bn.out_degree(parent)>0:
-                parent_node.append(parent)
-        variables = factorvars[var]
-        variables.sort() 
-        allvars = deepcopy(parent_node)
-        allvars.append(var)
-        perms = self.genpermutations(len(allvars))
-        entries = {}
-        asg = {}
-        for perm in perms:
-            violate = False
-            for pair in zip(allvars, perm): # tuples of ('var', value)
-                if pair[0] in e and e[pair[0]] != pair[1]:
-                    violate = True
-                    break
-                asg[pair[0]] = pair[1]
+    def factor_multiply(self, f1: pd.DataFrame, f2: pd.DataFrame) -> pd.DataFrame:
+        """
+        Given two factors f1 and f2, compute the multiplied factor f=f1*f2. 
+        """
+        vars1 = f1.columns.tolist()
+        vars1.remove("p")
+        vars2 = f2.columns.tolist()
+        vars2.remove("p")
+        union = set(vars1).union(set(vars2))
 
-            if violate:
+        worlds_all = [list(i) for i in itertools.product([False, True], repeat=len(union))]
+        new_factor = pd.DataFrame(columns=list(union)+['p'])
+
+        for world in worlds_all:
+            values = world
+            ins = pd.Series(values, index=union)
+            compats1 = self.bn.get_compatible_instantiations_table(ins, f1)
+            compats2 = self.bn.get_compatible_instantiations_table(ins, f2)
+            p = compats1.iloc[0].at['p'] * compats2.iloc[0].at['p']
+            ins = pd.Series(values+[p], index=list(union)+['p'])
+            new_factor = new_factor.append(ins, ignore_index=True)
+
+        return new_factor
+
+    def _in_factor(self, var: str, factor: pd.DataFrame) -> bool:
+            columns = factor.columns.tolist()
+            if var in set(columns[:columns.index('p')]):
+                return True
+            else:
+                return False
+
+    def _find_factor_index(self, f, factors: pd.DataFrame) -> int:
+        for i, factor in enumerate(factors):
+            if f.equals(factor):
+                return i
+        return False
+
+    def _reduce_factors(self, ins: pd.Series, factors: List[pd.DataFrame]) -> List[pd.DataFrame]:
+        new_factors = []
+        for factor in factors:
+            new_factors.append(self.bn.reduce_factor(ins, factor))
+        return new_factors
+
+    def _eliminate(self, var: str, factors: List[pd.DataFrame], eli_type: str) -> List[pd.DataFrame]:
+        to_eli = deepcopy(factors)
+        eli = False
+        for f in to_eli:
+            if self._in_factor(var, f):
+                if not eli:
+                    eli_factor = f
+                else:
+                    eli_factor = self.factor_multiply(eli_factor, f)
+                factors.pop(self._find_factor_index(f, factors))
+                eli = True
+            else:
                 continue
-            key = tuple(asg[v] for v in variables)
-            prob = self.querygiven(var, asg)
-            entries[key] = prob
-        return (variables, entries)
-    
-    def variable_elimination(self,Q,e,cpt):
-        bn = self.bn.structure
-        nodes = deepcopy(bn.nodes)
-        names=cpt.columns.tolist()
-        title=names[:-1]
-        eliminate = set()
-        factor=[]
-        leaf_node=[]
-        parent_node=[]
-        while len(eliminate)<len(title):
-            #filters the eliminated variables
-            variables= filter(lambda a: a not in eliminate,list(title))
-            #print(variables)
-            #calculates the leaf node
-            for leaf in nodes:
-                leaf_node.append(self.bn.get_children(leaf))
-            #calculates the parent node
-            for parent in nodes:
-                if bn.out_degree(parent)>0:
-                    parent_node.append(parent)
-            #filters the variable that has some children that is not eliminated
-            variables=filter(lambda v: (c in eliminate for c in leaf_node),variables)
-            factor_variables={}
-            #Enmerates the variables in factor associated with the variale
-            for v in variables:
-                factor_variables[v]=[p for p in parent_node if p not in e]
-                if v not in e:
-                    factor_variables[v].append(v)
-            #sorts w.r.t number of variables and alphabetical order
-            var=sorted(factor_variables.keys(),key=(lambda x: (len(factor_variables[x]),x)))[0]
-            #Making factors
-            if  len(factor_variables[var])>0:
-                factor.append(self.makefactor(var, factor_variables, e))
-            #if the selected var is not in the query or evidence then the factor is summed out  
-            if var !=Q and var not in e:
-                factor=[self.sum_out(var, cpt)]    
-            #updating the eliminated value
-            eliminate.add(var)    
-        #calculating the product
-        if len(factor[0]) >=2:
-                for fact in factor[0:]:
-                    #print("hello")
-                    result=self.multip(factor[0],fact)
+        if eli_type == "sum-out":
+            result_factor = self.sum_out(var, eli_factor)
+        elif eli_type == "max-out":
+            result_factor = self.max_out(var, eli_factor)
         else:
-            result=factor[0]
-        #normalizing it
-        #print(result)
-        solution=self.normalize(result[1])
-        #creating Dataframe
-        tit=result[0]
-        indi_probs=[]
-        tit.append('p')
-        df=pd.DataFrame(columns=tit,index=range(0,len(solution)))
-        key=list(solution.keys())
-        for k in key:
-            indi_probs.append(solution[k])
-        p=len(tit)-1
-        j=0
-        for k in key:
-            i=0
-            for x in k: 
-                df.iloc[j,i]=x
-                i+=1
-            df.iloc[j,p]=indi_probs[j]
-            j+=1
-        return df
- #---------------------------------------------------------------------------------------------------           
-     
+            raise ImportError
+        factors.append(result_factor)
+
+        return factors
+
+    def variable_eliminate(self, querys: list, evidence: pd.Series, factors: list):
+        # reduce factors w.r.t evidence
+        factors = self._reduce_factors(evidence, factors)
+        # get sum-out (eliminate) order
+        order_for_sum_out, _ = self.ordering(querys, heuristic="degree")
+        # sum-out (eliminate) variables
+        for var in order_for_sum_out:
+            factors = self._eliminate(var, factors, eli_type="sum-out")
+
+        return factors
+
+    def map(self, query, evidence, factors):
+        """
+        Maximum A-posteriori Query
+        Compute the maximum a-posteriory instantiation + value of query variables Q, given a possibly empty evidence e. 
+        """
+        variables = self.bn.get_all_variables()
+        cpts = list(self.bn.get_all_cpts().values())
+        eli_vars = list(set(variables)-set(query))
         
+        order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
+
+        factors = self.variable_eliminate(order_for_sum_out, evidence, cpts) 
+        # get max-out (eliminate) order
+        order_for_max_out, _ = self.ordering(query, heuristic="degree")
+        # max-out (eliminate) variables
+        for var in order_for_max_out:
+            factors = self._eliminate(var, factors, eli_type="max-out")
+
+        return factors
+
+
+
+
+
+
+
+
+
+
+
+
+
+# -------------------------------------------------
+
+def edge_prune(self,e):
+    bn = self.bn.structure
+    e_connection =[conn for conn in bn.successors(e)]
+    for con in e_connection:
+        bn.remove_edge(e,con)
+def node_prune(self,Q,e):
+    bn = self.bn.structure
+    #nodes = deepcopy(bn.nodes)
+    nodes = deepcopy(bn.nodes)
+    for node in nodes:
+        if bn.out_degree(node)==0 and node not in [Q,e]:
+            bn.remove_node(node)
+
+def querygiven(self,Q,e):
+    #Given the probablity of p(Q|e)
+    #it finds the probablity
+    bn=self.bn.structure
+    node=bn.nodes
+    cpt = self.bn.get_cpt(Q)
+    all_probs=cpt['p'].tolist()
+    evidence=pd.Series(e)
+    parent=[p for p in bn.predecessors(Q)]
+    #if there is not parent
+    if len(parent)==0:
+        prob=[all_probs[1] if e[Q] else all_probs[0]]
+    #if there is atleast one parent get the value of the parents, then query for p(Y)=y
+    else:
+        w=self.bn.get_compatible_instantiations_table(evidence, cpt)
+        prob=w['p'].tolist()
+    return prob
+        
+def normalize(self,probs):
+    #print(probs)
+    d=probs
+    key=list(d.keys())
+    indi_probs=[]
+    answer=[]
+    entry={}
+    for k in key:
+        indi_probs.append(probs[k])
+    #print(indi_probs)
+    total=sum(indi_probs)
+    for k in key:
+        answer=probs[k]/total
+        entry[k]=answer
+    return entry
+
+def genpermutations(self,length):
+    #creates various combinations of True and False w.r.t to length
+    perms=[list(i) for i in itertools.product([False, True], repeat=length)]    
+    return perms
+
+def makefactor(self, var, factorvars, e):
+    bn = self.bn.structure
+    nodes = deepcopy(bn.nodes)
+    parent_node=[]
+    for parent in nodes:
+        if bn.out_degree(parent)>0:
+            parent_node.append(parent)
+    variables = factorvars[var]
+    variables.sort() 
+    allvars = deepcopy(parent_node)
+    allvars.append(var)
+    perms = self.genpermutations(len(allvars))
+    entries = {}
+    asg = {}
+    for perm in perms:
+        violate = False
+        for pair in zip(allvars, perm): # tuples of ('var', value)
+            if pair[0] in e and e[pair[0]] != pair[1]:
+                violate = True
+                break
+            asg[pair[0]] = pair[1]
+
+        if violate:
+            continue
+        key = tuple(asg[v] for v in variables)
+        prob = self.querygiven(var, asg)
+        entries[key] = prob
+    return (variables, entries)
