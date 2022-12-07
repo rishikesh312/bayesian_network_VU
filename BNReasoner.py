@@ -278,101 +278,95 @@ class BNReasoner:
             factors = self._eliminate(var, factors, eli_type="max-out")
 
         return factors
-
-    def edge_prune(self,e):
-        bn = self.bn.structure
-        e_connection =[conn for conn in bn.successors(e)]
-        for con in e_connection:
-            bn.remove_edge(e,con)
-            
-    def node_prune(self,Q,e):
-        bn = self.bn.structure
-        #nodes = deepcopy(bn.nodes)
-        nodes = deepcopy(bn.nodes)
-        for node in nodes:
-            if bn.out_degree(node)==0 and node not in [Q,e]:
-                bn.remove_node(node)
-                
-    #Network Pruning            
+    #Network Pruning
     def network_pruning(self,Q,e):
-        self.edge_prune(e)
-        self.node_prune(Q,e)
-
-
-
-
-
-
-
-
-
-
-
-# -------------------------------------------------
-def querygiven(self,Q,e):
-    #Given the probablity of p(Q|e)
-    #it finds the probablity
-    bn=self.bn.structure
-    node=bn.nodes
-    cpt = self.bn.get_cpt(Q)
-    all_probs=cpt['p'].tolist()
-    evidence=pd.Series(e)
-    parent=[p for p in bn.predecessors(Q)]
-    #if there is not parent
-    if len(parent)==0:
-        prob=[all_probs[1] if e[Q] else all_probs[0]]
-    #if there is atleast one parent get the value of the parents, then query for p(Y)=y
-    else:
-        w=self.bn.get_compatible_instantiations_table(evidence, cpt)
-        prob=w['p'].tolist()
-    return prob
-        
-def normalize(self,probs):
-    #print(probs)
-    d=probs
-    key=list(d.keys())
-    indi_probs=[]
-    answer=[]
-    entry={}
-    for k in key:
-        indi_probs.append(probs[k])
-    #print(indi_probs)
-    total=sum(indi_probs)
-    for k in key:
-        answer=probs[k]/total
-        entry[k]=answer
-    return entry
-
-def genpermutations(self,length):
-    #creates various combinations of True and False w.r.t to length
-    perms=[list(i) for i in itertools.product([False, True], repeat=length)]    
-    return perms
-
-def makefactor(self, var, factorvars, e):
-    bn = self.bn.structure
-    nodes = deepcopy(bn.nodes)
-    parent_node=[]
-    for parent in nodes:
-        if bn.out_degree(parent)>0:
-            parent_node.append(parent)
-    variables = factorvars[var]
-    variables.sort() 
-    allvars = deepcopy(parent_node)
-    allvars.append(var)
-    perms = self.genpermutations(len(allvars))
-    entries = {}
-    asg = {}
-    for perm in perms:
-        violate = False
-        for pair in zip(allvars, perm): # tuples of ('var', value)
-            if pair[0] in e and e[pair[0]] != pair[1]:
-                violate = True
-                break
-            asg[pair[0]] = pair[1]
-
-        if violate:
-            continue
-        key = tuple(asg[v] for v in variables)
-        prob = self.querygiven(var, asg)
-        entries[key] = prob
-    return (variables, entries)
+        #edge pruning
+        for var,truth_val in zip(e.keys(),e.values()):
+            cpt = self.bn.get_cpt(var)
+            update_cpt =self.bn.get_compatible_instantiations_table(pd.Series({var:truth_val}),cpt)
+            self.bn.update_cpt(var, update_cpt)
+            #checking if node in evidence has children (children of the pruned edge) 
+            if self.bn.get_children(var)==[]:
+                pass
+            else:
+                for child in self.bn.get_children(var):
+                    #remove the edge bwt deleted node and child
+                    self.bn.del_edge((var,child))
+                    #update the cpt
+                    cpt = self.bn.get_cpt(child)
+                    cpt_update = self.bn.get_compatible_instantiations_table(pd.Series({var:truth_val}), cpt)
+                    self.bn.update_cpt(child, cpt_update)
+            #Leaf node pruning
+            exit_loop = False
+            while not exit_loop:
+                exit_loop = True
+                for variable in self.bn.get_all_variables():
+                    #check if leaf node affects the Q or e (meaning: having no child) 
+                    if self.bn.get_children(variable)==[]:
+                        #leaf node not in Q or e
+                        if variable not in set(Q) and variable not in set(e.keys()):
+                            #removing leaf node and running again to check if there is any leaf node left
+                            self.bn.del_var(variable)
+                            exit_loop=False
+    #Marginal Distribution
+    def marginal_distribution(self,Q,e,var):
+        #prunes the network based on Q and e
+        self.network_pruning(Q, e)
+        evidence_fact=1
+        #get the probability of evidence
+        for variable in e:
+            print(e)
+            #cpt=self.bn.get_cpt(variable)
+            evidence_fact *=self.bn.get_cpt(variable)['p'].sum()
+        #get all cpts where the variables occur
+        src=self.bn.get_all_cpts()
+        factor = 0
+        #find varibles not in Q
+        for variable in var:
+            print("variable:",variable)
+            factor_var ={}
+            
+            for cpt_var in src:
+                if variable in src[cpt_var]:
+                    factor_var[cpt_var]=src[cpt_var]
+            #apply chain rule and eliminate all variables
+            if len(factor_var) >= 2:
+               multiply_fact = self.Multiplefact(list(factor_var.values()))
+               new_cpt =self.sum_out(multiply_fact,[variable])
+               
+               for factor_variables in factor_var:
+                   del src[factor_variables]
+                    
+               factor +=1
+               src["factor"+str(factor)] = new_cpt
+            #if cpt is 1 we dont multiply
+            elif len(factor_var)==1:
+               new_cpt =self.sum_out(list(factor_var())[0], [variable])
+               
+               for factor_variables in factor_var:
+                   factor +=1
+                   src["factor"+str(factor)] = new_cpt
+       
+        if len(src)>1:
+           marginal_distrib=self.multiply_fact(list(src.values()))
+        else:
+            marginal_distrib=list(src.values())[0]
+        marginal_distrib["p"] = marginal_distrib["p"].div(evidence_fact)
+        return marginal_distrib
+    #multiple_factor(only for mariginal distribution purposes)
+    def multiply_fact(self, X):
+        #Input list of CPT to multiply
+        # factor is starting cpt 
+        factor = X[0]
+        for index in range(1, len(X)):
+            x = X[index]
+            column_x = [col for col in x.columns if col != 'p']
+            column_factor = [col for col in factor.columns if col != 'p']
+            match = list(set(column_x) & set(column_factor))
+            
+            if len(match) != 0:
+                df_mul = pd.merge(x, factor, how='left', on=match)
+                df_mul['p'] = (df_mul['p_x'] * df_mul['p_y'])
+                df_mul.drop(['p_x', 'p_y'],inplace=True, axis = 1)
+                factor = df_mul
+        return factor
