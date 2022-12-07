@@ -279,7 +279,24 @@ class BNReasoner:
 
         return factors
 
-
+    def edge_prune(self,e):
+        bn = self.bn.structure
+        e_connection =[conn for conn in bn.successors(e)]
+        for con in e_connection:
+            bn.remove_edge(e,con)
+            
+    def node_prune(self,Q,e):
+        bn = self.bn.structure
+        #nodes = deepcopy(bn.nodes)
+        nodes = deepcopy(bn.nodes)
+        for node in nodes:
+            if bn.out_degree(node)==0 and node not in [Q,e]:
+                bn.remove_node(node)
+                
+    #Network Pruning            
+    def network_pruning(self,Q,e):
+        self.edge_prune(e)
+        self.node_prune(Q,e)
 
 
 
@@ -292,20 +309,6 @@ class BNReasoner:
 
 
 # -------------------------------------------------
-
-def edge_prune(self,e):
-    bn = self.bn.structure
-    e_connection =[conn for conn in bn.successors(e)]
-    for con in e_connection:
-        bn.remove_edge(e,con)
-def node_prune(self,Q,e):
-    bn = self.bn.structure
-    #nodes = deepcopy(bn.nodes)
-    nodes = deepcopy(bn.nodes)
-    for node in nodes:
-        if bn.out_degree(node)==0 and node not in [Q,e]:
-            bn.remove_node(node)
-
 def querygiven(self,Q,e):
     #Given the probablity of p(Q|e)
     #it finds the probablity
