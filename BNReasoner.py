@@ -198,6 +198,10 @@ class BNReasoner:
         for node in nodes:
             if bn.out_degree(node)==0 and node not in [Q,e]:
                 bn.remove_node(node)
+    #Network Pruning            
+    def network_pruning(self,Q,e):
+        self.edge_prune(e)
+        self.node_prune(Q,e)
 #------------------------------Variable Elimination---------------------------------------------------------------
     def multip(self,factor1,factor2):
         newvar=[]
