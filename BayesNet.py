@@ -13,7 +13,7 @@ class BayesNet:
     def __init__(self) -> None:
         # initialize graph structure
         self.structure = nx.DiGraph()
-
+    
     # LOADING FUNCTIONS ------------------------------------------------------------------------------------------------
     def create_bn(self, variables: List[str], edges: List[Tuple[str, str]], cpts: Dict[str, pd.DataFrame]) -> None:
         """
@@ -226,3 +226,4 @@ class BayesNet:
         :param edge: Edge to be deleted (e.g. ('A', 'B')).
         """
         self.structure.remove_edge(edge[0], edge[1])
+

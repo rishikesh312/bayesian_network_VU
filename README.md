@@ -1,4 +1,4 @@
-# Useful Pointers for Assignment 2 of KR21
+# Assignment 2 BN
 
 ## BIFXML file format
 The BIFXML file format is meant to provide an easy means of exchanging Bayesian networks. It works with standard XML
