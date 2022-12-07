@@ -316,7 +316,7 @@ class BNReasoner:
         """
         Marginal Distribution
         """
-        def _multiply_fact(self, X):
+        def multiply_fact(self, X):
             # multiple_factor(only for mariginal distribution purposes)
             # Input list of CPT to multiply
             # factor is starting cpt 
@@ -354,7 +354,7 @@ class BNReasoner:
                     factor_var[cpt_var]=src[cpt_var]
             #apply chain rule and eliminate all variables
             if len(factor_var) >= 2:
-               _multiply_fact = self.Multiplefact(list(factor_var.values()))
+               _multiply_fact = self.multiply_fact(list(factor_var.values()))
                new_cpt =self.sum_out(_multiply_fact,[variable])
                
                for factor_variables in factor_var:
@@ -371,7 +371,7 @@ class BNReasoner:
                    src["factor"+str(factor)] = new_cpt
        
         if len(src)>1:
-           marginal_distrib=self._multiply_fact(list(src.values()))
+           marginal_distrib=self.multiply_fact(list(src.values()))
         else:
             marginal_distrib=list(src.values())[0]
         marginal_distrib["p"] = marginal_distrib["p"].div(evidence_fact)
