@@ -20,7 +20,6 @@ class BNReasoner:
         else:
             self.bn = net
 
-    # TODO: This is where your methods should go
     # METHODS FOR INFERENCE ---------------------------------------------------------------------------------------
 
     def dsep(self, x: str, y: str, z: str) -> bool:
@@ -51,21 +50,7 @@ class BNReasoner:
         
         def _is_connected(bn, a, b):
             bn = bn.to_undirected()
-            read = set()
-            def __exist_path(a, b):
-                neighbors = [n for n in bn.neighbors(a)]
-                if bn.has_edge(a, b):
-                    return True
-                for n in neighbors:
-                    if n not in read:
-                        read.add(n)
-                    else:
-                        continue
-                    connec = __exist_path(n, b)
-                    if connec:
-                        return True
-                return False
-            return __exist_path(a, b)
+            return nx.has_path(a, b)
 
         return not _is_connected(bn, x, y)
 
@@ -73,12 +58,9 @@ class BNReasoner:
         """
         Given three sets of variables X, Y, and Z, determine whether X is independent of Y given Z.
         """
-        if self.dsep(self,x,y,z) == True:
-            return True
-        else:
-            return False
+        return self.dsep(self,x,y,z)
 
-    def sum_out(self,x: str, cpt: pd.DataFrame):
+    def sum_out(self,x: str, cpt: pd.DataFrame) -> pd.DataFrame:
         """
         Given a factor and a variable X, compute the CPT in which X is summed-out.
         """
@@ -102,30 +84,34 @@ class BNReasoner:
             new_cpt = new_cpt.append(compats.loc[compats.index[0]])
         return new_cpt.reset_index(drop=True)
 
-    def max_out(self, x: str, cpt: pd.DataFrame):
+    def max_out(self, x: str, cpt: pd.DataFrame) -> pd.DataFrame:
         """
         Given a factor and a variable X, compute the CPT in which X is max-out,
         also keep track of which instantiation of X led to the maximized value.
         """
         tags = cpt.columns.tolist()
-        # remove x from tag, use for max-out operation
+        # remove x from tag, use for max-out operation 
         tags.remove(x)
-        pr_tag = tags[-1]
-        # get all variables
-        vars = tags[:-1]
-        worlds = [list(i) for i in itertools.product([False, True], repeat=len(vars))]
-        for world in worlds:
-            ins = pd.Series(world, index=vars)
-            compats = self.bn.get_compatible_instantiations_table(ins, cpt)
-            # get min index and delete from original cpt, which is equivalent of max-out
-            min_index = compats[compats[pr_tag] == compats[pr_tag].min()].index.tolist()[0]
-            cpt.drop(min_index, inplace=True)
+        # get tail tags
+        tail = tags[tags.index('p'):]
+        vars = tags[:tags.index('p')]
+        # if vars = [], directly take max dataframe
+        if vars == []:
+            cpt = cpt[cpt['p'] == cpt['p'].max()]
+        else:
+            worlds = [list(i) for i in itertools.product([False, True], repeat=len(vars))]
+            for world in worlds:
+                ins = pd.Series(world, index=vars)
+                compats = self.bn.get_compatible_instantiations_table(ins, cpt)
+                # get min index and delete from original cpt, which is equivalent of max-out
+                min_index = compats[compats['p'] == compats['p'].min()].index.tolist()[0]
+                cpt.drop(min_index, inplace=True)
         # reset columns, move maximize variable to the end
-        new_columns = vars + [pr_tag] + [x]
+        new_columns = vars + tail + [x]
         cpt = cpt.reindex(columns=new_columns)
         return cpt.reset_index(drop=True)
 
-    def ordering(self, vars: set, heuristic: str):
+    def ordering(self, vars: set, heuristic: str) -> pd.DataFrame:
         """
         Given a set of variables X in the Bayesian network, compute a good ordering for the elimination of X
         based on the min-degree heuristics and the min-fill heuristics.
@@ -182,29 +168,49 @@ class BNReasoner:
         
         return order, interaction_graph
 
+    def factor_multiplication(f: pd.DataFrame, g: pd.DataFrame) -> pd.DataFrame:
+        """
+        Smart factor mulplication.
+        """ 
+        vars_f = f.columns.tolist()
+        vars_g = g.columns.tolist()
+
+        join_var = [var for var in vars_f if var in vars_g and var != 'p']
+
+        merged_cpt = pd.merge(f, g, left_on=join_var, right_on=join_var)
+        merged_cpt['p'] = merged_cpt['p_x'] * merged_cpt['p_y']
+
+        h = merged_cpt.drop(['p_x','p_y'], axis=1)
+
+        return h
+
     def factor_multiply(self, f1: pd.DataFrame, f2: pd.DataFrame) -> pd.DataFrame:
         """
         Given two factors f1 and f2, compute the multiplied factor f=f1*f2. 
         """
-        vars1 = f1.columns.tolist()
-        vars1.remove("p")
-        vars2 = f2.columns.tolist()
-        vars2.remove("p")
-        union = set(vars1).union(set(vars2))
+        # for max-out factor, information after 'p' should also be tracked.
+        # so we need to record the tail and its value
+        columns1 = f1.columns.tolist()
+        tail1 = columns1[columns1.index('p'):]
+        columns2 = f2.columns.tolist()
+        tail2 = columns2[columns2.index('p'):]
+        # record tail (tacked variables)
+        tail = set(tail1).union(set(tail2))
 
-        worlds_all = [list(i) for i in itertools.product([False, True], repeat=len(union))]
-        new_factor = pd.DataFrame(columns=list(union)+['p'])
+        join_var = list(set(columns1[:columns1.index('p'):]).intersection(set(columns2[:columns2.index('p'):])))
 
-        for world in worlds_all:
-            values = world
-            ins = pd.Series(values, index=union)
-            compats1 = self.bn.get_compatible_instantiations_table(ins, f1)
-            compats2 = self.bn.get_compatible_instantiations_table(ins, f2)
-            p = compats1.iloc[0].at['p'] * compats2.iloc[0].at['p']
-            ins = pd.Series(values+[p], index=list(union)+['p'])
-            new_factor = new_factor.append(ins, ignore_index=True)
+        merged_factor = pd.merge(f1, f2, left_on=join_var, right_on=join_var)
+        merged_factor['p'] = merged_factor['p_x'] * merged_factor['p_y']
+        merged_factor = merged_factor.drop(['p_x','p_y'], axis=1)
+        # move fail variable to be the end of columns
 
-        return new_factor
+        columns = list(set(merged_factor.columns.to_list()).difference(tail)) + ['p']
+        tail.remove('p')
+        columns += list(tail)
+ 
+        merged_factor = merged_factor[columns]
+
+        return merged_factor
 
     def _in_factor(self, var: str, factor: pd.DataFrame) -> bool:
             columns = factor.columns.tolist()
@@ -213,7 +219,7 @@ class BNReasoner:
             else:
                 return False
 
-    def _find_factor_index(self, f, factors: pd.DataFrame) -> int:
+    def _find_factor_index(self, f: pd.DataFrame, factors: pd.DataFrame) -> int:
         for i, factor in enumerate(factors):
             if f.equals(factor):
                 return i
@@ -248,61 +254,89 @@ class BNReasoner:
 
         return factors
 
-    def variable_eliminate(self, querys: list, evidence: pd.Series, factors: list):
+    def variable_eliminate(self, queries: list, evidences: dict, factors: list) -> List[pd.DataFrame]:
+        """
+        Given queries, evidences, and factors, eliminate V/queries and return reduced factors
+        """
+        evidences = pd.Series(evidences)
         # reduce factors w.r.t evidence
-        factors = self._reduce_factors(evidence, factors)
+        factors = self._reduce_factors(evidences, factors)
         # get sum-out (eliminate) order
-        order_for_sum_out, _ = self.ordering(querys, heuristic="degree")
+        order_for_sum_out, _ = self.ordering(queries, heuristic="degree")
         # sum-out (eliminate) variables
         for var in order_for_sum_out:
             factors = self._eliminate(var, factors, eli_type="sum-out")
 
         return factors
 
-    def map(self, query, evidence, factors):
+    def map(self, queries: List[str], evidences: dict, prune=False) -> pd.DataFrame:
         """
         Maximum A-posteriori Query
         Compute the maximum a-posteriory instantiation + value of query variables Q, given a possibly empty evidence e. 
         """
         variables = self.bn.get_all_variables()
         cpts = list(self.bn.get_all_cpts().values())
-        eli_vars = list(set(variables)-set(query))
+        eli_vars = list(set(variables)-set(queries))
+
+        if prune:
+            self.network_pruning(queries, evidences)
         
         order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
 
-        factors = self.variable_eliminate(order_for_sum_out, evidence, cpts) 
+        factors = self.variable_eliminate(order_for_sum_out, evidences, cpts) 
         # get max-out (eliminate) order
-        order_for_max_out, _ = self.ordering(query, heuristic="degree")
+        order_for_max_out, _ = self.ordering(queries, heuristic="degree")
         # max-out (eliminate) variables
         for var in order_for_max_out:
             factors = self._eliminate(var, factors, eli_type="max-out")
 
-        return factors   
-    def factor_multiplication(self,f: pd.DataFrame, g: pd.DataFrame) -> pd.DataFrame:  
+        return factors[0]
+
+    def mpe(self, evidences: dict, prune=False) -> pd.DataFrame:
+        variables = self.bn.get_all_variables()
+        cpts = list(self.bn.get_all_cpts().values())
+
+        if prune:
+            self.network_pruning(variables, evidences)
+
+        factors = self._reduce_factors(pd.Series(evidences), cpts)
+
+        # get max-out (eliminate) order
+        order_for_max_out, _ = self.ordering(variables, heuristic="degree")
+        # max-out (eliminate) variables
+        for var in order_for_max_out:
+            factors = self._eliminate(var, factors, eli_type="max-out")
+
+        return factors[0]
+
+    def marginal_distribution2(self, queries: list, evidence: dict = None) -> pd.DataFrame:
         """
-        Given two factors f and g, compute the multiplied factor h=fg.
+        Given query variables Q and possibly empty evidence e, compute the marginal distribution P(Q|e).
         """
+        evidence = {} if not evidence else evidence
 
-        #adding the variables of the two cpts into lists
-        varsf = f.columns.tolist()
-        varsg = g.columns.tolist()
+        variables = self.bn.get_all_variables()
+        cpts = list(self.bn.get_all_cpts().values())
+        # sum-out all variables expect queries, to joint distribution
+        eli_vars = list(set(variables)-set(queries))
+
+        self.network_pruning(queries, evidence)
         
-        #variables that are equal in the two lists are picked
-        join_var = [var for var in varsf if var in varsg and var != 'p']
+        order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
+        joint_distribution = self.variable_eliminate(order_for_sum_out, evidence, cpts)
 
-        #merging the two cpts and then multiply the corresponding probs 
-        #and dropping the old individual probs
-        cpt_merged = pd.merge(f, g, left_on=join_var, right_on=join_var)
-        cpt_merged['p'] = (cpt_merged['p_x'] * cpt_merged['p_y'])      
-        cpt_merged.drop(['p_x','p_y'],inplace=True, axis=1)
-        
-        h = cpt_merged
+        if not evidence:
+            return joint_distribution
 
-        return h
-    
+        # sum-out all variables expect evidence, to get marginalization
+        eli_vars = list(set(variables)-set(evidence))
+        order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
+        marginalization = self.variable_eliminate(order_for_sum_out, evidence, cpts)
 
+        # TODO divide joint_distribution by marginalization to get posterior
+            
 
-    def network_pruning(self,Q,e):
+    def network_pruning(self, Q: list, e: dict) -> None:
         """
         Network Pruning
         """
@@ -334,9 +368,12 @@ class BNReasoner:
                             #removing leaf node and running again to check if there is any leaf node left
                             self.bn.del_var(variable)
                             exit_loop=False
-                            
-    # multiple_factor(only for mariginal distribution purposes)
-    def multiply_fact(self, X):
+
+    def marginal_distribution(self, Q: list, e: dict, var: str) -> pd.DataFrame:
+        """
+        Marginal Distribution
+        """
+        def multiply_fact(X):
             # multiple_factor(only for mariginal distribution purposes)
             # Input list of CPT to multiply
             # factor is starting cpt 
@@ -353,12 +390,7 @@ class BNReasoner:
                     df_mul.drop(['p_x', 'p_y'],inplace=True, axis = 1)
                     factor = df_mul
             return factor
-        
-    def marginal_distribution(self,Q,e,var):
-        """
-        Marginal Distribution
-        """
-        
+
         #prunes the network based on Q and e
         self.network_pruning(Q, e)
         evidence_fact=1
@@ -380,7 +412,7 @@ class BNReasoner:
                     factor_var[cpt_var]=src[cpt_var]
             #apply chain rule and eliminate all variables
             if len(factor_var) >= 2:
-               _multiply_fact = self.multiply_fact(list(factor_var.values()))
+               _multiply_fact = multiply_fact(list(factor_var.values()))
                new_cpt =self.sum_out(_multiply_fact,[variable])
                
                for factor_variables in factor_var:
@@ -397,9 +429,8 @@ class BNReasoner:
                    src["factor"+str(factor)] = new_cpt
        
         if len(src)>1:
-           marginal_distrib=self.multiply_fact(list(src.values()))
+           marginal_distrib=multiply_fact(list(src.values()))
         else:
             marginal_distrib=list(src.values())[0]
         marginal_distrib["p"] = marginal_distrib["p"].div(evidence_fact)
         return marginal_distrib
->>>>>>> dbec4c993c9335e07b753b7d7231a03f43fd761f
