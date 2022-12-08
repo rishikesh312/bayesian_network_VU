@@ -268,24 +268,26 @@ class BNReasoner:
         cpts = list(self.bn.get_all_cpts().values())
         eli_vars = list(set(variables)-set(query))
        
-    def factor_multiplication(self,f,g):  
-    
-        vars_f = []
-        vars_g = []
+    def factor_multiplication(self,f: pd.DataFrame, g: pd.DataFrame) -> pd.DataFrame:  
+        """
+        Given two factors f and g, compute the multiplied factor h=fg.
+        """
+
+        #adding the variables of the two cpts into lists
+        varsf = f.columns.tolist()
+        varsg = g.columns.tolist()
         
-        for x in f.columns:
-            vars_f.append[x]
+        #variables that are equal in the two lists are picked
+        join_var = [var for var in varsf if var in varsg and var != 'p']
 
-        for y in g.columns:
-            vars_g.append[y]
-
-        join_var = [var for var in vars_f if var in vars_g and var != 'p']
-
-        merged_cpt = pd.merge(f, g, left_on=join_var, right_on=join_var)
-
-        merged_cpt['p'] = merged_cpt['p_x']*merged_cpt['p_y']
+        #merging the two cpts and then multiply the corresponding probs 
+        #and dropping the old individual probs
+        cpt_merged = pd.merge(f, g, left_on=join_var, right_on=join_var)
+        cpt_merged['p'] = (cpt_merged['p_x'] * cpt_merged['p_y'])      
+        cpt_merged.drop(['p_x','p_y'],inplace=True, axis=1)
         
-        h = merged_cpt.drop(['p_x','p_y'],axis=1)
+        h = cpt_merged
+
         return h
     
         order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
