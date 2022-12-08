@@ -258,28 +258,6 @@ class BNReasoner:
             factors = self._eliminate(var, factors, eli_type="sum-out")
 
         return factors
-    
-    def factor_multiplication(self,f: pd.DataFrame, g: pd.DataFrame) -> pd.DataFrame:  
-        """
-        Given two factors f and g, compute the multiplied factor h=fg.
-        """
-
-        #adding the variables of the two cpts into lists
-        varsf = f.columns.tolist()
-        varsg = g.columns.tolist()
-        
-        #variables that are equal in the two lists are picked
-        join_var = [var for var in varsf if var in varsg and var != 'p']
-
-        #merging the two cpts and then multiply the corresponding probs 
-        #and dropping the old individual probs
-        cpt_merged = pd.merge(f, g, left_on=join_var, right_on=join_var)
-        cpt_merged['p'] = (cpt_merged['p_x'] * cpt_merged['p_y'])      
-        cpt_merged.drop(['p_x','p_y'],inplace=True, axis=1)
-        
-        h = cpt_merged
-
-        return h
 
     def map(self, query, evidence, factors):
         """
@@ -289,6 +267,27 @@ class BNReasoner:
         variables = self.bn.get_all_variables()
         cpts = list(self.bn.get_all_cpts().values())
         eli_vars = list(set(variables)-set(query))
+       
+    def factor_multiplication(self,f,g):  
+    
+        vars_f = []
+        vars_g = []
+        
+        for x in f.columns:
+            vars_f.append[x]
+
+        for y in g.columns:
+            vars_g.append[y]
+
+        join_var = [var for var in vars_f if var in vars_g and var != 'p']
+
+        merged_cpt = pd.merge(f, g, left_on=join_var, right_on=join_var)
+
+        merged_cpt['p'] = merged_cpt['p_x']*merged_cpt['p_y']
+        
+        h = merged_cpt.drop(['p_x','p_y'],axis=1)
+        return h
+    
         order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
 
         factors = self.variable_eliminate(order_for_sum_out, evidence, cpts) 
@@ -400,3 +399,4 @@ class BNReasoner:
             marginal_distrib=list(src.values())[0]
         marginal_distrib["p"] = marginal_distrib["p"].div(evidence_fact)
         return marginal_distrib
+>>>>>>> dbec4c993c9335e07b753b7d7231a03f43fd761f
