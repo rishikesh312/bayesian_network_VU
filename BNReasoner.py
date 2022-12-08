@@ -267,8 +267,7 @@ class BNReasoner:
         variables = self.bn.get_all_variables()
         cpts = list(self.bn.get_all_cpts().values())
         eli_vars = list(set(variables)-set(query))
-        
-<<<<<<< HEAD
+       
     def factor_multiplication(self,f,g):  
     
         vars_f = []
@@ -288,8 +287,7 @@ class BNReasoner:
         
         h = merged_cpt.drop(['p_x','p_y'],axis=1)
         return h
-
-=======
+    
         order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
 
         factors = self.variable_eliminate(order_for_sum_out, evidence, cpts) 
