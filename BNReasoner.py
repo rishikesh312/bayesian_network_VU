@@ -267,7 +267,17 @@ class BNReasoner:
         variables = self.bn.get_all_variables()
         cpts = list(self.bn.get_all_cpts().values())
         eli_vars = list(set(variables)-set(query))
-       
+        
+        order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
+
+        factors = self.variable_eliminate(order_for_sum_out, evidence, cpts) 
+        # get max-out (eliminate) order
+        order_for_max_out, _ = self.ordering(query, heuristic="degree")
+        # max-out (eliminate) variables
+        for var in order_for_max_out:
+            factors = self._eliminate(var, factors, eli_type="max-out")
+
+        return factors   
     def factor_multiplication(self,f: pd.DataFrame, g: pd.DataFrame) -> pd.DataFrame:  
         """
         Given two factors f and g, compute the multiplied factor h=fg.
@@ -290,16 +300,7 @@ class BNReasoner:
 
         return h
     
-        order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
 
-        factors = self.variable_eliminate(order_for_sum_out, evidence, cpts) 
-        # get max-out (eliminate) order
-        order_for_max_out, _ = self.ordering(query, heuristic="degree")
-        # max-out (eliminate) variables
-        for var in order_for_max_out:
-            factors = self._eliminate(var, factors, eli_type="max-out")
-
-        return factors
 
     def network_pruning(self,Q,e):
         """
