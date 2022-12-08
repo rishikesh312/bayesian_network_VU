@@ -311,12 +311,9 @@ class BNReasoner:
                             #removing leaf node and running again to check if there is any leaf node left
                             self.bn.del_var(variable)
                             exit_loop=False
-
-    def marginal_distribution(self,Q,e,var):
-        """
-        Marginal Distribution
-        """
-        def multiply_fact(self, X):
+                            
+    # multiple_factor(only for mariginal distribution purposes)
+    def multiply_fact(self, X):
             # multiple_factor(only for mariginal distribution purposes)
             # Input list of CPT to multiply
             # factor is starting cpt 
@@ -333,6 +330,12 @@ class BNReasoner:
                     df_mul.drop(['p_x', 'p_y'],inplace=True, axis = 1)
                     factor = df_mul
             return factor
+        
+    def marginal_distribution(self,Q,e,var):
+        """
+        Marginal Distribution
+        """
+        
         #prunes the network based on Q and e
         self.network_pruning(Q, e)
         evidence_fact=1
