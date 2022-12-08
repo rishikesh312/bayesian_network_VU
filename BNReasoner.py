@@ -258,16 +258,7 @@ class BNReasoner:
             factors = self._eliminate(var, factors, eli_type="sum-out")
 
         return factors
-
-    def map(self, query, evidence, factors):
-        """
-        Maximum A-posteriori Query
-        Compute the maximum a-posteriory instantiation + value of query variables Q, given a possibly empty evidence e. 
-        """
-        variables = self.bn.get_all_variables()
-        cpts = list(self.bn.get_all_cpts().values())
-        eli_vars = list(set(variables)-set(query))
-       
+   
     def factor_multiplication(self,f,g):  
     
         vars_f = []
@@ -287,6 +278,15 @@ class BNReasoner:
         
         h = merged_cpt.drop(['p_x','p_y'],axis=1)
         return h
+    
+    def map(self, query, evidence, factors):
+        """
+        Maximum A-posteriori Query
+        Compute the maximum a-posteriory instantiation + value of query variables Q, given a possibly empty evidence e. 
+        """
+        variables = self.bn.get_all_variables()
+        cpts = list(self.bn.get_all_cpts().values())
+        eli_vars = list(set(variables)-set(query))
     
         order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
 
@@ -399,4 +399,3 @@ class BNReasoner:
             marginal_distrib=list(src.values())[0]
         marginal_distrib["p"] = marginal_distrib["p"].div(evidence_fact)
         return marginal_distrib
->>>>>>> dbec4c993c9335e07b753b7d7231a03f43fd761f
