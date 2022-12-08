@@ -381,3 +381,23 @@ class BNReasoner:
  #---------------------------------------------------------------------------------------------------           
      
         
+    def factor_multiplication(self,f,g):  
+    
+        vars_f = []
+        vars_g = []
+        
+        for x in f.columns:
+            vars_f.append[x]
+
+        for y in g.columns:
+            vars_g.append[y]
+
+        join_var = [var for var in vars_f if var in vars_g and var != 'p']
+
+        merged_cpt = pd.merge(f, g, left_on=join_var, right_on=join_var)
+
+        merged_cpt['p'] = merged_cpt['p_x']*merged_cpt['p_y']
+        
+        h = merged_cpt.drop(['p_x','p_y'],axis=1)
+        return h
+
