@@ -357,7 +357,7 @@ class BNReasoner:
         for var,truth_val in zip(e.keys(),e.values()):
             cpt = self.bn.get_cpt(var)
             update_cpt =self.bn.get_compatible_instantiations_table(pd.Series({var:truth_val}),cpt)
-            #self.bn.update_cpt(var, update_cpt)
+            self.bn.update_cpt(var, update_cpt)
             #checking if node in evidence has children (children of the pruned edge) 
             if self.bn.get_children(var)==[]:
                 pass
