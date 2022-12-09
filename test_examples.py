@@ -17,6 +17,13 @@ x, y, z = 'bowel-problem', 'light-on', 'dog-out'
 print(br.dsep(x, y, z))
 
 
+"""independence test"""
+br = BNReasoner("testing/dog_problem.BIFXML")
+br.bn.draw_structure()
+x, y, z = 'bowel-problem', 'light-on', 'dog-out'
+print(br.dsep(x, y, z))
+
+
 """ordering test"""
 br = BNReasoner("testing/dog_problem.BIFXML")
 vars = ['family-out', 'dog-out']
@@ -50,7 +57,7 @@ br.bn.draw_structure()
 factors = list(br.bn.get_all_cpts().values())
 for f in factors:
     print(f)
-ins = pd.Series({"A": True})
+ins = {"A": True}
 results = (br.variable_eliminate(["A", "B"], ins, factors))
 for f in results:
     print(f)
@@ -59,10 +66,32 @@ for f in results:
 """test for map"""
 br = BNReasoner("testing/map_mpe.BIFXML")
 br.bn.draw_structure()
+for f in factors:
+    print(f)
+ins = {"O": True}
+result = (br.map(["I", "J"], ins, prune=True))
+print(result)
+
+
+"""test for MPE"""
+br = BNReasoner("testing/map_mpe.BIFXML")
+br.bn.draw_structure()
 factors = list(br.bn.get_all_cpts().values())
 for f in factors:
     print(f)
-ins = pd.Series({"O": True})
-results = (br.map(["I", "J"], ins, factors))
-for f in results:
-    print(f)
+envidence = {"J": True, "O": False}
+result = (br.mpe(envidence, prune=True))
+print(result)
+
+
+"""test for network pruning"""
+br = BNReasoner("testing/map_mpe.BIFXML")
+br.bn.draw_structure()
+br.network_pruning([], {"J": True, "O": False})
+br.bn.draw_structure()
+
+
+"""test for marginal districution"""
+br = BNReasoner("testing/abc.BIFXML")
+br.bn.draw_structure()
+print(br.marginal_distribution2(["C"], {"A": True}))

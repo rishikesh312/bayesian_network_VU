@@ -60,7 +60,7 @@ class BNReasoner:
         """
         return self.dsep(self,x,y,z)
 
-    def sum_out(self,x: str, cpt: pd.DataFrame) -> pd.DataFrame:
+    def sum_out(self, x: str, cpt: pd.DataFrame) -> pd.DataFrame:
         """
         Given a factor and a variable X, compute the CPT in which X is summed-out.
         """
@@ -323,18 +323,26 @@ class BNReasoner:
         self.network_pruning(queries, evidence)
         
         order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
-        joint_distribution = self.variable_eliminate(order_for_sum_out, evidence, cpts)
+        joint_distribution = self.variable_eliminate(order_for_sum_out, evidence, cpts)[0]
 
         if not evidence:
             return joint_distribution
 
         # sum-out all variables expect evidence, to get marginalization
         eli_vars = list(set(variables)-set(evidence))
-        order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
-        marginalization = self.variable_eliminate(order_for_sum_out, evidence, cpts)
-
-        # TODO divide joint_distribution by marginalization to get posterior
-            
+        e_key = list(evidence.keys())[0]
+        # if evidence is in root node, directly return its reduce factor, otherwise calulate p(e) using variable elimination
+        if self.bn.structure.in_degree(e_key)==0:
+            marginalization = self.bn.reduce_factor(pd.Series(evidence), self.bn.get_cpt(e_key))
+        else:
+            order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
+            marginalization = self.variable_eliminate(order_for_sum_out, evidence, cpts)[0]
+        # divide joint_distribution by marginalization to get posterior
+        marginalization = marginalization[marginalization['p']!=0]
+        pr_e = marginalization.iloc[0].at['p']
+        joint_distribution['p'] = joint_distribution['p'] / pr_e
+     
+        return joint_distribution
 
     def network_pruning(self, Q: list, e: dict) -> None:
         """
@@ -373,7 +381,6 @@ class BNReasoner:
                             #removing leaf node and running again to check if there is any leaf node left
                             self.bn.del_var(variable)
                             exit_loop=False
-
 
     def multiply_fact(self,X):
         """
