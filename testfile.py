@@ -8,6 +8,8 @@ br.network_pruning("family-out",{"hear-bark":True})
 br.bn.draw_structure()#shows the graph after pruning
 
 #marginal distribution
-br = BNReasoner("testing/dog_problem.BIFXML")
+br = BNReasoner("testing/abc.BIFXML")
 br.bn.draw_structure()
-print(br.marginal_distribution(["dog-out"],{"family-out":True,"bowel-problem":False},["hear-bark"]))
+print(br.marginal_distribution(["C"],{"A":True}))
+#No evidence given
+print(br.marginal_distribution(["C"],{}))
