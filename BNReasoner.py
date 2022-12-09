@@ -338,13 +338,18 @@ class BNReasoner:
 
     def network_pruning(self, Q: list, e: dict) -> None:
         """
-        Network Pruning
+        Network Purning
+        Input:
+            Q ->Query (Input type: list)
+            e -> evidence (Input type: dict)
+        Output:
+            Doesnt return a value, but it does edge and leaf node pruning 
         """
         #edge pruning
         for var,truth_val in zip(e.keys(),e.values()):
             cpt = self.bn.get_cpt(var)
             update_cpt =self.bn.get_compatible_instantiations_table(pd.Series({var:truth_val}),cpt)
-            self.bn.update_cpt(var, update_cpt)
+            #self.bn.update_cpt(var, update_cpt)
             #checking if node in evidence has children (children of the pruned edge) 
             if self.bn.get_children(var)==[]:
                 pass
@@ -355,7 +360,7 @@ class BNReasoner:
                     #update the cpt
                     cpt = self.bn.get_cpt(child)
                     cpt_update = self.bn.get_compatible_instantiations_table(pd.Series({var:truth_val}), cpt)
-                    self.bn.update_cpt(child, cpt_update)
+                    #self.bn.update_cpt(child, cpt_update)
             #Leaf node pruning
             exit_loop = False
             while not exit_loop:
@@ -369,68 +374,81 @@ class BNReasoner:
                             self.bn.del_var(variable)
                             exit_loop=False
 
-    def marginal_distribution(self, Q: list, e: dict, var: str) -> pd.DataFrame:
+
+    def multiply_fact(self,X):
+        """
+        multiple_factor(only for mariginal distribution purposes)
+        Input:
+            X ->list of CPT to multiply (Input type: list)
+        Output:
+            product of factors
+        """
+        factor = X[0]
+        for index in range(1, len(X)):
+            x = X[index]
+            column_x = [col for col in x.columns if col != 'p']
+            column_factor = [col for col in factor.columns if col != 'p']
+            match = list(set(column_x) & set(column_factor))
+            
+            if len(match) != 0:
+                df_mul = pd.merge(x, factor, how='left', on=match)
+                df_mul['p'] = (df_mul['p_x'] * df_mul['p_y'])
+                df_mul.drop(['p_x', 'p_y'],inplace=True, axis = 1)
+                factor = df_mul
+        return factor
+
+    def marginal_distribution(self,Q,e):
         """
         Marginal Distribution
+        Input:
+            Q -> Query (Input type: List)
+            e -> evidence (Input type: Dict)
+        Return:
+            Marginal Distribution w.r.t (Q,e)
         """
-        def multiply_fact(X):
-            # multiple_factor(only for mariginal distribution purposes)
-            # Input list of CPT to multiply
-            # factor is starting cpt 
-            factor = X[0]
-            for index in range(1, len(X)):
-                x = X[index]
-                column_x = [col for col in x.columns if col != 'p']
-                column_factor = [col for col in factor.columns if col != 'p']
-                match = list(set(column_x) & set(column_factor))
-                
-                if len(match) != 0:
-                    df_mul = pd.merge(x, factor, how='left', on=match)
-                    df_mul['p'] = (df_mul['p_x'] * df_mul['p_y'])
-                    df_mul.drop(['p_x', 'p_y'],inplace=True, axis = 1)
-                    factor = df_mul
-            return factor
 
         #prunes the network based on Q and e
         self.network_pruning(Q, e)
         evidence_fact=1
         #get the probability of evidence
         for variable in e:
-            print(e)
-            #cpt=self.bn.get_cpt(variable)
             evidence_fact *=self.bn.get_cpt(variable)['p'].sum()
         #get all cpts where the variables occur
         src=self.bn.get_all_cpts()
         factor = 0
-        #find varibles not in Q
+        var=[]
+        for q in Q:
+            var = [p for p in self.bn.structure.predecessors(q)]
         for variable in var:
-            print("variable:",variable)
             factor_var ={}
             
             for cpt_var in src:
                 if variable in src[cpt_var]:
                     factor_var[cpt_var]=src[cpt_var]
-            #apply chain rule and eliminate all variables
             if len(factor_var) >= 2:
-               _multiply_fact = multiply_fact(list(factor_var.values()))
-               new_cpt =self.sum_out(_multiply_fact,[variable])
-               
-               for factor_variables in factor_var:
-                   del src[factor_variables]
-                    
-               factor +=1
-               src["factor"+str(factor)] = new_cpt
-            #if cpt is 1 we dont multiply
+                 multiplied_cpt = self.multiply_fact(list(factor_var.values()))
+                 
+                 new_cpt = self.sum_out(variable,multiplied_cpt)
+                 for factor_variable in factor_var:
+                     del src[factor_variable]
+                 
+                 factor +=1
+                 src["factor "+str(factor)] = new_cpt
+             # when there is only one cpt, don't multiply
             elif len(factor_var)==1:
-               new_cpt =self.sum_out(list(factor_var())[0], [variable])
-               
-               for factor_variables in factor_var:
-                   factor +=1
-                   src["factor"+str(factor)] = new_cpt
-       
+               df = pd.DataFrame(list(factor_var.values())[0])
+               new_cpt =self.sum_out(variable,df)    
+               for factor_variable in factor_var:
+                     del src[factor_variable]
+               factor +=1
+               src["factor "+str(factor)] = new_cpt
+
+
         if len(src)>1:
-           marginal_distrib=multiply_fact(list(src.values()))
+           marginal_distrib=self.multiply_fact(list(src.values()))
         else:
             marginal_distrib=list(src.values())[0]
+        marginal_distrib=marginal_distrib.dropna()
         marginal_distrib["p"] = marginal_distrib["p"].div(evidence_fact)
+        
         return marginal_distrib
