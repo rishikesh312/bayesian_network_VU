@@ -456,6 +456,10 @@ class BNReasoner:
         else:
             marginal_distrib=list(src.values())[0]
         marginal_distrib=marginal_distrib.dropna()
+        print("Before normalization")
+        print(marginal_distrib)
+        print("\n")
+        print("After normalization")
         marginal_distrib["p"] = marginal_distrib["p"].div(evidence_fact)
         
         return marginal_distrib
