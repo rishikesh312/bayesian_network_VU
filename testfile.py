@@ -11,5 +11,3 @@ br.bn.draw_structure()#shows the graph after pruning
 br = BNReasoner("testing/abc.BIFXML")
 br.bn.draw_structure()
 print(br.marginal_distribution(["C"],{"A":True}))
-#No evidence given
-print(br.marginal_distribution(["C"],{}))
