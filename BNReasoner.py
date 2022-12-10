@@ -20,6 +20,13 @@ class BNReasoner:
             self.bn.load_from_bifxml(net)
         else:
             self.bn = net
+        self.backup_bn = deepcopy(self.bn)
+    
+    def resume_network(self) -> None:
+        """
+        resume the newwork to its initial structure
+        """
+        self.bn = deepcopy(self.backup_bn)
 
     # METHODS FOR INFERENCE ---------------------------------------------------------------------------------------
 
@@ -294,7 +301,7 @@ class BNReasoner:
 
         return factors
 
-    def map(self, queries: List[str], evidences: dict, prune=False) -> pd.DataFrame:
+    def map(self, queries: List[str], evidences: dict, prune=False, heuristic="degree") -> pd.DataFrame:
         """
         Maximum A-posteriori Query
         Compute the maximum a-posteriory instantiation + value of query variables Q, given a possibly empty evidence e. 
@@ -307,11 +314,11 @@ class BNReasoner:
         cpts = list(self.bn.get_all_cpts().values())
         eli_vars = list(set(variables)-set(queries))
  
-        order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
+        order_for_sum_out, _ = self.ordering(eli_vars, heuristic)
 
         factors = self.variable_eliminate(order_for_sum_out, evidences, cpts) 
         # get max-out (eliminate) order
-        order_for_max_out, _ = self.ordering(queries, heuristic="degree")
+        order_for_max_out, _ = self.ordering(queries, heuristic)
         # max-out (eliminate) variables
         for var in order_for_max_out:
             factors = self._eliminate(var, factors, eli_type="max-out")
@@ -321,7 +328,7 @@ class BNReasoner:
 
         return factors
 
-    def mpe(self, evidences: dict, prune=False) -> pd.DataFrame:
+    def mpe(self, evidences: dict, prune=False, heuristic="degree") -> pd.DataFrame:
         if prune:
             self.network_pruning([],evidences)
 
@@ -331,7 +338,7 @@ class BNReasoner:
         factors = self._reduce_factors(pd.Series(evidences), cpts)
 
         # get max-out (eliminate) order
-        order_for_max_out, _ = self.ordering(variables, heuristic="degree")
+        order_for_max_out, _ = self.ordering(variables, heuristic)
         # max-out (eliminate) variables
         for var in order_for_max_out:
             factors = self._eliminate(var, factors, eli_type="max-out")
