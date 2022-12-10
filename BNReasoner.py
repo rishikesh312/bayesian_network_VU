@@ -7,6 +7,7 @@ import numpy as np
 import networkx as nx
 from pgmpy.readwrite import XMLBIFReader
 from typing import List
+
 class BNReasoner:
     def __init__(self, net: Union[str, BayesNet]):
         """
@@ -50,7 +51,7 @@ class BNReasoner:
         
         def _is_connected(bn, a, b):
             bn = bn.to_undirected()
-            return nx.has_path(a, b)
+            return nx.has_path(self.bn.structure, a, b)
 
         return not _is_connected(bn, x, y)
 
@@ -58,7 +59,7 @@ class BNReasoner:
         """
         Given three sets of variables X, Y, and Z, determine whether X is independent of Y given Z.
         """
-        return self.dsep(self,x,y,z)
+        return self.dsep(x,y,z)
 
     def sum_out(self, x: str, cpt: pd.DataFrame) -> pd.DataFrame:
         """
@@ -78,7 +79,7 @@ class BNReasoner:
             ins = pd.Series(world, index=vars)
             compats = self.bn.get_compatible_instantiations_table(ins, cpt)
             # get sum-out pr and update to row 0
-            compats = compats.append(compats.sum(), ignore_index=True)
+            compats = compats.append(compats.sum(numeric_only=True), ignore_index=True)
             compats.loc[compats.index[0], pr_tag] = compats.loc[compats.index[-1], pr_tag]
             # append row 0 to new cpt
             new_cpt = new_cpt.append(compats.loc[compats.index[0]])
@@ -103,6 +104,9 @@ class BNReasoner:
             for world in worlds:
                 ins = pd.Series(world, index=vars)
                 compats = self.bn.get_compatible_instantiations_table(ins, cpt)
+                # if lines of compats < 2, min() is meaningless
+                if compats.shape[0]<2:
+                    continue
                 # get min index and delete from original cpt, which is equivalent of max-out
                 min_index = compats[compats['p'] == compats['p'].min()].index.tolist()[0]
                 cpt.drop(min_index, inplace=True)
@@ -136,6 +140,8 @@ class BNReasoner:
             for one in deepcopy(degrees):
                 if one[0] not in vars:
                     degrees.remove(one)
+            if degrees == []:
+                return None
             return max(degrees)[0]
 
         def _get_least_adding_var(vars, interaction_graph):
@@ -151,20 +157,25 @@ class BNReasoner:
                 adding[var] = count
             return min(adding, key=adding.get)
 
-        def _iter_eliminate(vars, select_func, interaction_graph):
+        def _iter_eliminate(vars, order, select_func, interaction_graph):
             # iteratively run variable elimination
             nodes = deepcopy(vars)
             while len(nodes) > 0:
                 selected = select_func(nodes, interaction_graph)
+                # if no more var can be selected, break the loop
+                if not selected:
+                    order += nodes
+                    break
                 order.append(selected)
                 _eliminate(selected, interaction_graph)
                 nodes.remove(selected)
+            return order
 
         if heuristic == 'degree':
-            _iter_eliminate(vars, _get_least_degree_var, interaction_graph)
+            order = _iter_eliminate(vars, order, _get_least_degree_var, interaction_graph)
             
         if heuristic == 'fill':
-            _iter_eliminate(vars, _get_least_adding_var, interaction_graph)
+            order = _iter_eliminate(vars, order, _get_least_adding_var, interaction_graph)
         
         return order, interaction_graph
 
@@ -254,6 +265,20 @@ class BNReasoner:
 
         return factors
 
+    def _merge_factors(self, factors: List[pd.DataFrame]) -> pd.DataFrame:
+        """
+        Merge independent factors
+        """
+        p = 1
+        new_data = {}
+        for factor in factors:
+            p *= factor.iloc[0].at['p']
+            line = factor.iloc[-1].to_dict()
+            del line['p']
+            new_data ={**new_data, **line}
+        result = {**{'p': p}, **new_data}
+        return pd.DataFrame([result.values()], columns=result.keys())
+
     def variable_eliminate(self, queries: list, evidences: dict, factors: list) -> List[pd.DataFrame]:
         """
         Given queries, evidences, and factors, eliminate V/queries and return reduced factors
@@ -274,13 +299,14 @@ class BNReasoner:
         Maximum A-posteriori Query
         Compute the maximum a-posteriory instantiation + value of query variables Q, given a possibly empty evidence e. 
         """
+        if prune:
+            self.network_pruning(queries, evidences)
+            # self.bn.draw_structure()
+            
         variables = self.bn.get_all_variables()
         cpts = list(self.bn.get_all_cpts().values())
         eli_vars = list(set(variables)-set(queries))
-
-        if prune:
-            self.network_pruning(queries, evidences)
-        
+ 
         order_for_sum_out, _ = self.ordering(eli_vars, heuristic="degree")
 
         factors = self.variable_eliminate(order_for_sum_out, evidences, cpts) 
@@ -290,14 +316,17 @@ class BNReasoner:
         for var in order_for_max_out:
             factors = self._eliminate(var, factors, eli_type="max-out")
 
-        return factors[0]
+        if len(factors) > 1:
+            return self._merge_factors(factors)
+
+        return factors
 
     def mpe(self, evidences: dict, prune=False) -> pd.DataFrame:
+        if prune:
+            self.network_pruning([],evidences)
+
         variables = self.bn.get_all_variables()
         cpts = list(self.bn.get_all_cpts().values())
-
-        if prune:
-            self.network_pruning(variables, evidences)
 
         factors = self._reduce_factors(pd.Series(evidences), cpts)
 
@@ -307,7 +336,10 @@ class BNReasoner:
         for var in order_for_max_out:
             factors = self._eliminate(var, factors, eli_type="max-out")
 
-        return factors[0]
+        if len(factors) > 1:
+            return self._merge_factors(factors)
+
+        return factors
 
     def marginal_distribution2(self, queries: list, evidence: dict = None) -> pd.DataFrame:
         """
@@ -374,7 +406,7 @@ class BNReasoner:
             while not exit_loop:
                 exit_loop = True
                 for variable in self.bn.get_all_variables():
-                    #check if leaf node affects the Q or e (meaning: having no child) 
+                    #check if leaf node affects the Q or e (meaning: having no child)
                     if self.bn.get_children(variable)==[]:
                         #leaf node not in Q or e
                         if variable not in set(Q) and variable not in set(e.keys()):
