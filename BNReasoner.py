@@ -284,7 +284,7 @@ class BNReasoner:
             del line['p']
             new_data ={**new_data, **line}
         result = {**{'p': p}, **new_data}
-        return pd.DataFrame([result.values()], columns=result.keys())
+        return [pd.DataFrame([result.values()], columns=result.keys())]
 
     def variable_eliminate(self, queries: list, evidences: dict, factors: list) -> List[pd.DataFrame]:
         """
