@@ -50,6 +50,7 @@ class BnrExperiment:
 
             output_file = os.path.join(self.output_dir, file_name+".csv")
             self.write_result(output_file)
+            self.result = []
             # break
 
     def run_inference(self, network_file, netwrok_size, func, q, e, prune, heuristic, save_result=True):
@@ -82,7 +83,7 @@ class BnrExperiment:
         Generate random queries and evidences
         """
         # random select n (also random) sub-vars(len less than 1/3 len of vars) from vars
-        select_vars = random.sample(vars, random.randint(2, len(vars)//2))
+        select_vars = random.sample(vars, random.randint(2, len(vars)//3))
         # random select n (also random) sub-vars from selected vars as q
         select_q = random.sample(select_vars, random.randint(1, len(select_vars)-1))
         select_e = [one for one in select_vars if one not in select_q]
