@@ -2,6 +2,7 @@
 import os
 import random
 import time
+import traceback
 import uuid
 import pandas as pd
 
@@ -19,34 +20,30 @@ class BnrExperiment:
             file_name = file.split("/")[-1].split(".BIFXML")[0]
             print(file_name)
             vars = self.br.bn.get_all_variables()
-            for i in range(100):
-                q, e = self.qe_generate(vars)
+            try:
+                for i in range(100):
+                    q, e = self.qe_generate(vars)
 
-                print(q, e)
+                    print(q, e)
 
-                map = self.br.map
-                mpe = self.br.mpe
+                    map = self.br.map
+                    mpe = self.br.mpe
 
-                result1, time1 = self.run_inference(file_name, len(vars), map, q, e, prune=True, heuristic="fill", save_result=True)
-                result2, time2 = self.run_inference(file_name, len(vars), map, q, e, prune=False, heuristic="fill", save_result=True)
-                result3, time3 = self.run_inference(file_name, len(vars), map, q, e, prune=True, heuristic="degree", save_result=True)
-                result4, time4 = self.run_inference(file_name, len(vars), map, q, e, prune=False, heuristic="degree", save_result=True)
+                    self.run_inference(file_name, len(vars), map, q, e, prune=True, heuristic="fill", save_result=True)
+                    self.run_inference(file_name, len(vars), map, q, e, prune=False, heuristic="fill", save_result=True)
+                    self.run_inference(file_name, len(vars), map, q, e, prune=True, heuristic="degree", save_result=True)
+                    self.run_inference(file_name, len(vars), map, q, e, prune=False, heuristic="degree", save_result=True)
 
-                result5, time5 = self.run_inference(file_name, len(vars), mpe, q, e, prune=True, heuristic="fill", save_result=True)
-                result6, time6 = self.run_inference(file_name, len(vars), mpe, q, e, prune=False, heuristic="fill", save_result=True)
-                result7, time7 = self.run_inference(file_name, len(vars), mpe, q, e, prune=True, heuristic="degree", save_result=True)
-                result8, time8 = self.run_inference(file_name, len(vars), mpe, q, e, prune=False, heuristic="degree", save_result=True)
-                
-                # print("result  time \n", result1[0], time1)
-                # print("result  time \n", result2[0], time2)
-                # print("result  time \n", result3[0], time3)
-                # print("result  time \n", result4[0], time4)
-                # print("result  time \n", result5[0], time5)
-                # print("result  time \n", result6[0], time6)
-                # print("result  time \n", result7[0], time7)
-                # print("result  time \n", result8[0], time8)
-
-                print("Done one Q&e with {}".format(file_name))
+                    self.run_inference(file_name, len(vars), mpe, q, e, prune=True, heuristic="fill", save_result=True)
+                    self.run_inference(file_name, len(vars), mpe, q, e, prune=False, heuristic="fill", save_result=True)
+                    self.run_inference(file_name, len(vars), mpe, q, e, prune=True, heuristic="degree", save_result=True)
+                    self.run_inference(file_name, len(vars), mpe, q, e, prune=False, heuristic="degree", save_result=True)
+                    
+                    print("Done one Q&e with {}".format(file_name))
+            except:
+                print(traceback.format_exc())
+                output_file = os.path.join(self.output_dir, file_name+".csv")
+                self.write_result(output_file)
 
             output_file = os.path.join(self.output_dir, file_name+".csv")
             self.write_result(output_file)
@@ -75,15 +72,15 @@ class BnrExperiment:
                     ["id", "network", "size", "query", "evidence", "method", "prune", "heuristic", "result", "time"], 
                     [uuid.uuid1(), network_file, netwrok_size, q, e, func_name, str(prune), heuristic, result[0].to_dict(), end-start])
             )
-
-        return result, end-start
+        else:
+            return result, end-start
 
     def qe_generate(self, vars: list, seed=None):
         """
         Generate random queries and evidences
         """
         # random select n (also random) sub-vars(len less than 1/3 len of vars) from vars
-        select_vars = random.sample(vars, random.randint(2, len(vars)//3))
+        select_vars = random.sample(vars, random.randint(2, 5+len(vars)//10))
         # random select n (also random) sub-vars from selected vars as q
         select_q = random.sample(select_vars, random.randint(1, len(select_vars)-1))
         select_e = [one for one in select_vars if one not in select_q]
@@ -112,7 +109,7 @@ class BnrExperiment:
 
 if __name__ == "__main__":
 
-    part = 2
+    part = 1
 
     test_files = os.path.join(os.getcwd(), "testing")
     output_dir = os.path.join(os.getcwd(), "experiments")
@@ -122,12 +119,15 @@ if __name__ == "__main__":
 
     files = os.listdir(test_files)
     files.sort()
+
+    files = [os.path.join(test_files, file) for file in files if "0.BIFXML" in file and "100" not in file]
+
     if part == 2:
         files = files[-5:]
     else:
-        files = files[:-5]
+        files = files[5:6]
 
-    files = [os.path.join(test_files, file) for file in files if "0.BIFXML" in file and "100" not in file]
+    # print(files)
 
     he = BnrExperiment(files, output_dir)
     he.run()
