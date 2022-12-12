@@ -1,2 +1,0 @@
-,id,network,size,query,evidence,method,prune,heuristic,result,time
-0,0f506d72-798a-11ed-b0a7-653e8f13f4eb,network-60,60,"['t1', 'z', 'm1', 'e1', 'b']","{'d': True, 's1': True}",map,True,fill,"{'p': {0: 0.007031249999999999}, 'e1': {0: True}, 'm1': {0: True}, 't1': {0: True}, 'z': {0: True}, 'b': {0: True}}",9.165823912975611
