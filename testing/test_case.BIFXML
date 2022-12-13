@@ -1,0 +1,170 @@
+<?xml version="1.0" encoding="US-ASCII"?>
+<!--Author: Stans Paulussen
+    Bayesian network in XMLBIF v0.3 (BayesNet Interchange Format)
+ -->
+
+<!-- DTD for the XMLBIF 0.3 format -->
+<!DOCTYPE BIF [
+	<!ELEMENT BIF ( NETWORK )*>
+	      <!ATTLIST BIF VERSION CDATA #REQUIRED>
+	<!ELEMENT NETWORK ( NAME, ( PROPERTY | VARIABLE | DEFINITION )* )>
+	<!ELEMENT NAME (#PCDATA)>
+	<!ELEMENT VARIABLE ( NAME, ( OUTCOME |  PROPERTY )* ) >
+	      <!ATTLIST VARIABLE TYPE (nature|decision|utility) "nature">
+	<!ELEMENT OUTCOME (#PCDATA)>
+	<!ELEMENT DEFINITION ( FOR | GIVEN | TABLE | PROPERTY )* >
+	<!ELEMENT FOR (#PCDATA)>
+	<!ELEMENT GIVEN (#PCDATA)>
+	<!ELEMENT TABLE (#PCDATA)>
+	<!ELEMENT PROPERTY (#PCDATA)>
+]>
+
+<BIF VERSION="0.3">
+<NETWORK>
+    <NAME>Use Case</NAME>
+
+    <!-- Variables-->
+    <VARIABLE TYPE="nature">
+        <NAME>Travelling</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Hygiene</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Pandemic</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Lockdown</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Social Distancing</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Party</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+        <VARIABLE TYPE="nature">
+        <NAME>Dancing</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Exam Week</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Busy</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Tired</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Stressed</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Bed Early</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+    <VARIABLE TYPE="nature">
+        <NAME>Bags Under Eyes</NAME>
+        <OUTCOME>True</OUTCOME>
+        <OUTCOME>False</OUTCOME>
+    </VARIABLE>
+
+    <!-- PCTs -->
+    <DEFINITION>
+        <FOR>Travelling</FOR>
+        <TABLE>0.2 0.8</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Hygiene</FOR>
+        <TABLE>0.3 0.7</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Exam Week</FOR>
+        <TABLE>0.8 0.2</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Pandemic</FOR>
+        <GIVEN>Hygiene</GIVEN>
+        <GIVEN>Travelling</GIVEN>
+        <TABLE>0.85 0.15 0.95 0.05 0.25 0.75 0.45 0.55</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Social Distancing</FOR>
+        <GIVEN>Lockdown</GIVEN>
+        <GIVEN>Pandemic</GIVEN>
+        <TABLE>0.8 0.2 0.4 0.6 0.25 0.75 0.1 0.9</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Lockdown</FOR>
+        <GIVEN>Travelling</GIVEN>
+        <GIVEN>Pandemic</GIVEN>
+        <TABLE>0.9 0.1 0.99 0.01 0.1 0.9 0.8 0.2</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Party</FOR>
+        <GIVEN>Social Distancing</GIVEN>
+        <GIVEN>Lockdown</GIVEN>
+        <TABLE>0.01 0.99 0.6 0.4 0.75 0.25 0.9 0.1</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Dancing</FOR>
+        <GIVEN>Party</GIVEN>
+        <GIVEN>Social Distancing</GIVEN>
+        <TABLE>0.85 0.15 0.1 0.9 0.99 0.01 0.2 0.8</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Tired</FOR>
+        <GIVEN>Stressed</GIVEN>
+        <GIVEN>Party</GIVEN>
+        <GIVEN>Exam Week</GIVEN>
+        <GIVEN>Busy</GIVEN>
+        <TABLE>0.9 0.1 0.5 0.5 0.4 0.6 0.25 0.75 0.45 0.55 0.35 0.65 0.3 0.7 0.1 0.9 0.35 0.65 0.25 0.75 0.15 0.85 0.1 0.9 0.2 0.8 0.05 0.95 0.15 0.85 0.0 1.0</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Busy</FOR>
+        <GIVEN>Exam Week</GIVEN>
+        <GIVEN>Lockdown</GIVEN>
+        <TABLE>0.5 0.5 0.1 0.9 0.75 0.25 0.2 0.8</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Stressed</FOR>
+        <GIVEN>Exam Week</GIVEN>
+        <GIVEN>Busy</GIVEN>
+        <TABLE>0.85 0.15 0.6 0.4 0.15 0.85 0.05 0.95</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Bags Under Eyes</FOR>
+        <GIVEN>Stressed</GIVEN>
+        <GIVEN>Tired</GIVEN>
+        <TABLE>0.55 0.45 0.55 0.45 0.15 0.85 0.05 0.95</TABLE>
+    </DEFINITION>
+    <DEFINITION>
+        <FOR>Bed Early</FOR>
+        <GIVEN>Stressed</GIVEN>
+        <GIVEN>Tired</GIVEN>
+        <TABLE>0.75 0.25 0.85 0.15 0.05 0.95 0.3 0.7</TABLE>
+    </DEFINITION>
+
+</NETWORK>
+</BIF>
