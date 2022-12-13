@@ -28,8 +28,8 @@ def compare_heuristic(df: pd.DataFrame, network_names, cal_mean=True):
     means_fill, means_degree = [], []
     fills, degrees = [], []
     for network in network_names:
-        fill = df[(df["network"]==network) & (df["method"]=="map") & (df["prune"]==True) & (df["heuristic"]=="fill")]
-        degree = df[(df["network"]==network) & (df["method"]=="map") & (df["prune"]==True) & (df["heuristic"]=="degree")]
+        fill = df[(df["network"]==network) & (df["method"]=="map") & (df["prune"]==False) & (df["heuristic"]=="fill")]
+        degree = df[(df["network"]==network) & (df["method"]=="map") & (df["prune"]==False) & (df["heuristic"]=="degree")]
         if not cal_mean:
             fills.append(fill["time"])
             degrees.append(degree["time"])
@@ -45,7 +45,7 @@ def compare_qe_length(df: pd.DataFrame, network_names, cal_mean):
     qe_lens = []
     qe_means = []
     for network in network_names:
-        new_df = df[(df["network"]==network) & (df["method"]=="mpe") & (df["prune"]==True) & (df["heuristic"]=="degree")]
+        new_df = df[(df["network"]==network) & (df["method"]=="mpe") & (df["prune"]==True) & (df["heuristic"]=="fill")]
         new_df["qe_length"] = new_df.apply(calculate_qe_len, axis=1)
         qe_len_set = set(new_df["qe_length"].to_list())
         qe_len_list = []
@@ -65,18 +65,19 @@ def compare_qe_length(df: pd.DataFrame, network_names, cal_mean):
 def calculate_qe_len(x):
     q_len = len(list(eval(x["query"])))
     e_len = len(eval(x["evidence"]))
-    return q_len + e_len
+    # return q_len + e_len
+    return e_len
 
 def plot_double_bar(networks, y1, y2, save_name, pair=None):
     width = 0.2
     x = np.arange(len(networks))
-    plt.figure(figsize=(8,4))
+    plt.figure(figsize=(8,6))
     plt.bar(x=x, height=y1, width=width, label=pair[0])
     plt.bar(x=x+width, height=y2, width=width, label=pair[1])
     for x_value, y_value in zip(x, y1):
-        plt.text(x=x_value, y=y_value, s=y_value)
+        plt.text(x=x_value-0.02, y=y_value, s=y_value)
     for x_value, y_value in zip(x, y2):
-        plt.text(x=x_value+width, y=y_value, s=y_value)
+        plt.text(x=x_value+width-0.02, y=y_value, s=y_value)
     plt.rcParams["axes.unicode_minus"] = False
     plt.title(f"Inference time {pair[0]} vs {pair[1]}")
     x_labels = networks
@@ -103,18 +104,19 @@ def plot_double_box(networks, y1, y2, save_name, pair=None):
 
 def plot_single_box(networks, x, y, save_name,):
     width = 0.2
-    plt.figure(figsize=(16,12))
+    plt.figure(figsize=(16,14))
     for i, network in enumerate(networks):
-        plt.title(f"Performance Evaluation: (Q,e) length")
         plt.subplot(2,3,i+1)
         plt.boxplot(x=y[i], positions=x[i], widths=width, showfliers=False, patch_artist=True ,boxprops={"facecolor": "red"})
+        plt.xlabel("Evidence length")
+        plt.title(network)
+        plt.ylabel("Inference time (s)")
 
-    # x_labels = networks
+
     plt.rcParams["axes.unicode_minus"] = False
     # plt.xlabel("(Q,e) sample length")
     # plt.ylabel("run time (s) / (Q,e) sample")
-    plt.xlabel("(Q,e) sample length")
-    plt.ylabel("run time (s) / (Q,e) sample")
+
     plt.legend() 
     plt.savefig(save_name)
     plt.show()
@@ -156,25 +158,25 @@ means_prune, means_unprune = compare_prune(df, network_names)
 plot_double_bar(network_names, means_prune, means_unprune, "prune_cps_bar.png",pair=["Prune", "UnPrune"])
 
 # """fill vs degree bar"""
-# means_fill, means_degree = compare_prune(df, network_names)
+# means_fill, means_degree = compare_heuristic(df, network_names)
 # plot_double_bar(network_names, means_fill, means_degree, pair=["min-fill", "min-degree"])
 
 # """prune vs unprunes box"""
 # prunes, unprunes = compare_prune(df, network_names, cal_mean=False)
 # plot_double_box(network_names, prunes, unprunes, pair=["Prune", "UnPrune"])
 
-# """prune vs unprunes box"""
-# fills, degrees = compare_prune(df, network_names, cal_mean=False)
-# plot_double_box(network_names, fills, degrees, pair=["min-fill", "min-degree"])
-
-# """fill vs degree plot"""
+# """fill vs degree box"""
 # fills, degrees = compare_heuristic(df, network_names, cal_mean=False)
-# plot_with_line(network_names, fills, degrees, pair=["min-fill", "min-degree"])
+# plot_double_box(network_names, fills, degrees, "heuristic_cps_box", pair=["min-fill", "min-degree"])
 
 """prune vs unprunes plot"""
 prunes, unprunes = compare_prune(df, network_names, cal_mean=False)
 plot_with_line(network_names, prunes, unprunes, "prune_cps_line.png",pair=["Prune", "UnPrune"])
 
-# """qe_len comparison plot"""
+# """fill vs degree plot"""
+# fills, degrees = compare_heuristic(df, network_names, cal_mean=False)
+# plot_with_line(network_names, fills, degrees, "heuristic_cps_plot",pair=["min-fill", "min-degree"])
+
+"""qe_len comparison plot"""
 qe_lens, qe_means = compare_qe_length(df, network_names, cal_mean=False)
 plot_single_box(network_names, qe_lens, qe_means, save_name="qe_lens_cpr.png")
