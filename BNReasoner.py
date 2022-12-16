@@ -329,10 +329,10 @@ class BNReasoner:
         return factors
 
     def mpe(self, evidences: dict, prune=False, heuristic="degree") -> pd.DataFrame:
+        variables = self.bn.get_all_variables()
         if prune:
             self.network_pruning([],evidences)
 
-        variables = self.bn.get_all_variables()
         cpts = list(self.bn.get_all_cpts().values())
 
         factors = self._reduce_factors(pd.Series(evidences), cpts)
